@@ -22,6 +22,7 @@ import {
   avoidedCo2Tonnes,
   buildCapex,
   comparePpa,
+  DEFAULT_FINANCE,
   DEFAULT_PPA,
   evaluateFinance,
   type CapexLine,
@@ -371,7 +372,7 @@ export const evaluateSizing = (
     assumptions: {
       tariffEscalation: factors.tariffEscalation,
       degradationPerYear: factors.degradationPerYear,
-      omAedPerKwYear: 55 * factors.omFactor,
+      omAedPerKwYear: DEFAULT_FINANCE.omAedPerKwYear * factors.omFactor,
     },
   });
 
