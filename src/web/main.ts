@@ -436,12 +436,12 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
       ]
         .filter(Boolean)
         .join(" — ");
-      return `<div class="fact-row">
-        <div>
+      return `<div class="register-row">
+        <div class="register-head">
           <div class="fact-label">${esc(entry.input)}</div>
-          <div class="fact-src"><span class="chip ${chip}">${esc(entry.kind)}</span> ${esc(detail)}</div>
+          <div class="fact-value">${esc(entry.value)}</div>
         </div>
-        <div class="fact-value" style="white-space:normal;text-align:right">${esc(entry.value)}</div>
+        <div class="fact-src"><span class="chip ${chip}">${esc(entry.kind)}</span> ${esc(detail)}</div>
       </div>`;
     })
     .join("");

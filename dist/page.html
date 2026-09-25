@@ -261,6 +261,14 @@
   }
   .fact-row:last-child { border-bottom: none; }
   .fact-row > div { min-width: 0; }
+  .register-row {
+    padding: 9px 0; border-bottom: 1px solid var(--line);
+  }
+  .register-row:last-child { border-bottom: none; }
+  .register-head {
+    display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+  }
+  .register-head .fact-value { white-space: normal; text-align: right; flex-shrink: 1; min-width: 0; }
   .fact-label { color: var(--ink-dim); font-size: 12.5px; }
   .fact-label button {
     color: var(--faint); border-bottom: 1px dotted var(--faint); font-size: inherit;
@@ -604,12 +612,12 @@
       <div class="kpi is-sun"><span>System</span><b>${V.format(a.sizing.roofSolarKwp)} kW</b><em>${V.format(Math.round(a.sizing.roofSolarKwp*1e3/ge.moduleWatts))} panels</em></div>
       <div class="kpi is-good"><span>Year one saving</span><b>${ue(a.finance.firstYearSavingsAed)}</b><em>off a ${ue(n.baselineBillAed)} bill</em></div>
       <div class="kpi"><span>Pays back in</span><b>${a.finance.simplePaybackYears?.toFixed(1)??"—"} yrs</b><em>${a.finance.irr?`${ae(a.finance.irr,0)} over 25 years`:""}</em></div>
-      <div class="kpi"><span>Of its own power</span><b>${a.renewableShare.toFixed(0)}%</b><em>${Fe(a.simulation.generationKwh)} a year</em></div>`:`<div class="kpi" style="grid-column: span 2"><span>Recommended system</span><b>none</b><em>${F(s.reason.slice(0,80))}</em></div>`,j("working").innerHTML=a?S4(e,s):'<p class="note">Nothing is recommended here, so there is no sizing to show. The reason is above and the inputs behind it are below.</p>';const c=n.structure,M=n.tariff;j("inputs").innerHTML=[be("What the building does",w1[e.sector],"Typical for sector","is-assumed","sector"),be("Annual consumption",Fe(e.annualKwh),"Typical for sector","is-assumed","annualKwh"),be("Approved Load",`${V.format(e.approvedLoadKw)} kW`,"Account","is-authority","approvedLoad"),be("How the roof is built",c.construction.replace("-"," "),e.roofConstruction==="unknown"?"Not stated":"Stated",e.roofConstruction==="unknown"?"is-assumed":"","roofConstruction"),be("Roof height",e.roofHeightM?`${e.roofHeightM} m`:"not known",e.roofHeightM?"Stated":"Not mapped",e.roofHeightM?"":"is-assumed","roofHeight"),be("Roof outline",`${V.format(n.roofAreaM2)} m²`,"OpenStreetMap","is-measured"),be("Tariff",M?`${M.utility} ${M.customerClass}`:"—",M?.provenance.asOf?`Published ${M.provenance.asOf}`:"—","is-authority","tariff"),be("Scheme",We[e.emirate].scheme,ps(e.emirate),"is-authority")].join("");for(const u of j("inputs").querySelectorAll("[data-term]"))u.addEventListener("click",()=>W4(u.dataset.term));const r=y4(s.result);j("register-summary").textContent=m4(r),j("register").innerHTML=r.map(u=>{const N=u.kind==="authority"?"is-authority":u.kind==="assumption"||u.kind==="model"?"is-assumed":"is-measured",w=[u.provenance.label,u.provenance.asOf?`as of ${u.provenance.asOf}`:null,u.provenance.caveat,u.swingAed?`moves NPV by up to ${ue(u.swingAed)}`:null,u.howToResolve].filter(Boolean).join(" — ");return`<div class="fact-row">
-        <div>
+      <div class="kpi"><span>Of its own power</span><b>${a.renewableShare.toFixed(0)}%</b><em>${Fe(a.simulation.generationKwh)} a year</em></div>`:`<div class="kpi" style="grid-column: span 2"><span>Recommended system</span><b>none</b><em>${F(s.reason.slice(0,80))}</em></div>`,j("working").innerHTML=a?S4(e,s):'<p class="note">Nothing is recommended here, so there is no sizing to show. The reason is above and the inputs behind it are below.</p>';const c=n.structure,M=n.tariff;j("inputs").innerHTML=[be("What the building does",w1[e.sector],"Typical for sector","is-assumed","sector"),be("Annual consumption",Fe(e.annualKwh),"Typical for sector","is-assumed","annualKwh"),be("Approved Load",`${V.format(e.approvedLoadKw)} kW`,"Account","is-authority","approvedLoad"),be("How the roof is built",c.construction.replace("-"," "),e.roofConstruction==="unknown"?"Not stated":"Stated",e.roofConstruction==="unknown"?"is-assumed":"","roofConstruction"),be("Roof height",e.roofHeightM?`${e.roofHeightM} m`:"not known",e.roofHeightM?"Stated":"Not mapped",e.roofHeightM?"":"is-assumed","roofHeight"),be("Roof outline",`${V.format(n.roofAreaM2)} m²`,"OpenStreetMap","is-measured"),be("Tariff",M?`${M.utility} ${M.customerClass}`:"—",M?.provenance.asOf?`Published ${M.provenance.asOf}`:"—","is-authority","tariff"),be("Scheme",We[e.emirate].scheme,ps(e.emirate),"is-authority")].join("");for(const u of j("inputs").querySelectorAll("[data-term]"))u.addEventListener("click",()=>W4(u.dataset.term));const r=y4(s.result);j("register-summary").textContent=m4(r),j("register").innerHTML=r.map(u=>{const N=u.kind==="authority"?"is-authority":u.kind==="assumption"||u.kind==="model"?"is-assumed":"is-measured",w=[u.provenance.label,u.provenance.asOf?`as of ${u.provenance.asOf}`:null,u.provenance.caveat,u.swingAed?`moves NPV by up to ${ue(u.swingAed)}`:null,u.howToResolve].filter(Boolean).join(" — ");return`<div class="register-row">
+        <div class="register-head">
           <div class="fact-label">${F(u.input)}</div>
-          <div class="fact-src"><span class="chip ${N}">${F(u.kind)}</span> ${F(w)}</div>
+          <div class="fact-value">${F(u.value)}</div>
         </div>
-        <div class="fact-value" style="white-space:normal;text-align:right">${F(u.value)}</div>
+        <div class="fact-src"><span class="chip ${N}">${F(u.kind)}</span> ${F(w)}</div>
       </div>`}).join("");const L=n.weather.source==="modelled-clear-sky";j("trust").innerHTML=`
     <div class="callout is-good">
       <b>Checked against PVGIS.</b> The sunlight model is fitted to five-year measurements at
