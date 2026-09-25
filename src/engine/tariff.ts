@@ -33,6 +33,8 @@ export type Tariff = {
   id: string;
   utility: string;
   emirate: Emirate;
+  /** Set when one utility serves several emirates (EtihadWE, Northern Emirates). */
+  emirates?: Emirate[];
   customerClass: CustomerClass;
   /** Energy slabs, or null when the tariff is time-of-use. */
   slabs: TariffSlab[] | null;
@@ -64,6 +66,30 @@ const ADDC_SOURCE: Provenance = {
   asOf: "2026-09-23",
   caveat: "Transcribed from the 2025 tariff year; the 2026 page was unreachable.",
 };
+
+const ETIHADWE_SOURCE: Provenance = {
+  kind: "authority",
+  label: "EtihadWE tariff page",
+  url: "https://etihadwe.ae/en/About/Pages/Tariff.aspx",
+  asOf: "2026-09-25",
+};
+
+const SEWA_SOURCE: Provenance = {
+  kind: "authority",
+  label: "SEWA energy calculator",
+  url: "https://sewa.gov.ae/en/energy-calculator",
+  asOf: "2026-09-25",
+};
+
+const SEWA_INDUSTRIAL_SOURCE: Provenance = {
+  kind: "assumption",
+  label: "SEWA industrial tariff (secondary source)",
+  asOf: "2026-09-25",
+  caveat:
+    "SEWA's own calculator publishes the four-slab commercial schedule only. Industrial slabs are transcribed from secondary compilations and must be confirmed with SEWA before any quote.",
+};
+
+const NORTHERN_EMIRATES: Emirate[] = ["ajman", "umm-al-quwain", "ras-al-khaimah", "fujairah"];
 
 export const TARIFFS: Tariff[] = [
   {
@@ -114,7 +140,7 @@ export const TARIFFS: Tariff[] = [
     vatRate: 0.05,
     vatIncluded: true,
     provenance: ADDC_SOURCE,
-    exportTreatment: "unknown",
+    exportTreatment: "none",
   },
   {
     id: "addc-industrial-sub-1mw",
@@ -128,7 +154,7 @@ export const TARIFFS: Tariff[] = [
     vatRate: 0.05,
     vatIncluded: true,
     provenance: ADDC_SOURCE,
-    exportTreatment: "unknown",
+    exportTreatment: "none",
   },
   {
     id: "addc-industrial-over-1mw",
@@ -148,6 +174,77 @@ export const TARIFFS: Tariff[] = [
     vatRate: 0.05,
     vatIncluded: true,
     provenance: ADDC_SOURCE,
+    exportTreatment: "none",
+  },
+  {
+    id: "etihadwe-commercial",
+    utility: "EtihadWE",
+    emirate: "ajman",
+    emirates: NORTHERN_EMIRATES,
+    customerClass: "commercial",
+    slabs: [
+      { upToKwhPerMonth: 2000, aedPerKwh: 0.23 },
+      { upToKwhPerMonth: 4000, aedPerKwh: 0.28 },
+      { upToKwhPerMonth: 6000, aedPerKwh: 0.32 },
+      { upToKwhPerMonth: Infinity, aedPerKwh: 0.38 },
+    ],
+    timeOfUse: null,
+    surchargeAedPerKwh: 0.05,
+    meterChargeAedPerMonth: 0,
+    vatRate: 0.05,
+    vatIncluded: false,
+    provenance: ETIHADWE_SOURCE,
+    exportTreatment: "credit-expires-annually",
+  },
+  {
+    id: "etihadwe-industrial",
+    utility: "EtihadWE",
+    emirate: "ajman",
+    emirates: NORTHERN_EMIRATES,
+    customerClass: "industrial",
+    slabs: [{ upToKwhPerMonth: Infinity, aedPerKwh: 0.4 }],
+    timeOfUse: null,
+    surchargeAedPerKwh: 0.04,
+    meterChargeAedPerMonth: 0,
+    vatRate: 0.05,
+    vatIncluded: false,
+    provenance: ETIHADWE_SOURCE,
+    exportTreatment: "credit-expires-annually",
+  },
+  {
+    id: "sewa-commercial",
+    utility: "SEWA",
+    emirate: "sharjah",
+    customerClass: "commercial",
+    slabs: [
+      { upToKwhPerMonth: 2000, aedPerKwh: 0.23 },
+      { upToKwhPerMonth: 4000, aedPerKwh: 0.28 },
+      { upToKwhPerMonth: 6000, aedPerKwh: 0.32 },
+      { upToKwhPerMonth: Infinity, aedPerKwh: 0.38 },
+    ],
+    timeOfUse: null,
+    surchargeAedPerKwh: 0.06,
+    meterChargeAedPerMonth: 0,
+    vatRate: 0.05,
+    vatIncluded: false,
+    provenance: SEWA_SOURCE,
+    exportTreatment: "unknown",
+  },
+  {
+    id: "sewa-industrial",
+    utility: "SEWA",
+    emirate: "sharjah",
+    customerClass: "industrial",
+    slabs: [
+      { upToKwhPerMonth: 10000, aedPerKwh: 0.2 },
+      { upToKwhPerMonth: Infinity, aedPerKwh: 0.33 },
+    ],
+    timeOfUse: null,
+    surchargeAedPerKwh: 0.06,
+    meterChargeAedPerMonth: 0,
+    vatRate: 0.05,
+    vatIncluded: false,
+    provenance: SEWA_INDUSTRIAL_SOURCE,
     exportTreatment: "unknown",
   },
 ];
@@ -162,7 +259,8 @@ export type TariffSelection = {
 export const selectTariff = (selection: TariffSelection): Tariff | null => {
   const candidates = TARIFFS.filter(
     (tariff) =>
-      tariff.emirate === selection.emirate && tariff.customerClass === selection.customerClass,
+      (tariff.emirates ? tariff.emirates.includes(selection.emirate) : tariff.emirate === selection.emirate) &&
+      tariff.customerClass === selection.customerClass,
   );
   if (candidates.length === 0) return null;
   if (selection.emirate === "abu-dhabi" && selection.customerClass === "industrial") {

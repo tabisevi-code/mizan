@@ -38,6 +38,7 @@ import {
 } from "./pv";
 import {
   RULE_SETS,
+  labelEmirate,
   regulatoryCap,
   screenStructure,
   screenTechnologies,
@@ -66,6 +67,7 @@ import {
 export type BindingConstraint =
   | "roof-area"
   | "approved-load"
+  | "tcl-slab"
   | "plot-cap"
   | "budget"
   | "self-consumption"
@@ -114,6 +116,28 @@ export type PlanContext = {
   unitGround: HourlySeries;
 };
 
+/**
+ * Why the customer's target could not be met, in one named case. The point is
+ * to say which constraint failed and by how much, in the customer's units,
+ * rather than return a worse answer with no explanation.
+ */
+export type Infeasibility = {
+  kind:
+    | "no-tariff"
+    | "regulatory-cap"
+    | "budget"
+    | "area"
+    | "self-consumption"
+    | "no-options";
+  /** What the target asked for, self-consumed kWh a year. */
+  requiredKwh: number;
+  /** The most any buildable option delivered, self-consumed kWh a year. */
+  achievedKwh: number;
+  /** requiredKwh minus achievedKwh. */
+  shortfallKwh: number;
+  explanation: string;
+};
+
 export type PlanResult = {
   context: PlanContext;
   options: PlanOption[];
@@ -121,6 +145,10 @@ export type PlanResult = {
   uncertainty: UncertaintyResult | null;
   sensitivity: SensitivityEntry[];
   ppa: OwnershipComparison | null;
+  /** Present when nothing buildable meets the site's stated target. */
+  infeasibility: Infeasibility | null;
+  /** The option meeting the target at lowest cost, when one exists. */
+  targetOption: PlanOption | null;
 };
 
 const EMPTY_FIT: ArrayFit = {
@@ -145,7 +173,10 @@ const combine = (a: HourlySeries, b: HourlySeries, scaleA: number, scaleB: numbe
   return output;
 };
 
-const ladder = (maxKwp: number, steps = [0, 0.25, 0.5, 0.75, 1]): number[] => {
+const ladder = (
+  maxKwp: number,
+  steps = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+): number[] => {
   if (maxKwp <= 0) return [0];
   return [...new Set(steps.map((fraction) => Math.round(maxKwp * fraction)))].sort((a, b) => a - b);
 };
@@ -410,12 +441,30 @@ export const plan = (
 ): PlanResult => {
   const context = buildContext(site, weather, packed);
   if (!context.tariff) {
-    return { context, options: [], best: null, uncertainty: null, sensitivity: [], ppa: null };
+    return {
+      context,
+      options: [],
+      best: null,
+      uncertainty: null,
+      sensitivity: [],
+      ppa: null,
+      infeasibility: {
+        kind: "no-tariff",
+        requiredKwh: targetKwh(site) ?? 0,
+        achievedKwh: 0,
+        shortfallKwh: targetKwh(site) ?? 0,
+        explanation: `No published tariff could be matched to a ${site.customerClass} account in ${labelEmirate(site.emirate)}, so no bill and no saving can be priced.`,
+      },
+      targetOption: null,
+    };
   }
 
   const dailyKwh = context.load.annualKwh / 365;
   const batteryLadder = [0, 0.1, 0.25, 0.4].map((fraction) => Math.round(dailyKwh * fraction));
   const options: PlanOption[] = [];
+  // Everything the rules and geometry allow, ignoring budget, is also
+  // evaluated so an infeasible answer can say which constraint stopped it.
+  const unconstrained: PlanOption[] = [];
 
   for (const layout of ["south", "east-west"] as ArrayLayout[]) {
     const roofCeiling = Math.min(context.roofFit[layout].kwp, context.cap.capKw);
@@ -425,6 +474,7 @@ export const plan = (
         for (const batteryKwh of batteryLadder) {
           const option = evaluateSizing(context, { roofSolarKwp, groundSolarKwp, batteryKwh, layout });
           if (!option) continue;
+          unconstrained.push(option);
           if (site.budgetAed && option.capex.totalAed > site.budgetAed) continue;
           options.push(option);
         }
@@ -434,9 +484,19 @@ export const plan = (
 
   options.sort((a, b) => b.finance.npvAed - a.finance.npvAed);
   const best = options[0] ?? null;
+  const { infeasibility, targetOption } = assessTarget(context, options, unconstrained);
 
   if (!best) {
-    return { context, options, best: null, uncertainty: null, sensitivity: [], ppa: null };
+    return {
+      context,
+      options,
+      best: null,
+      uncertainty: null,
+      sensitivity: [],
+      ppa: null,
+      infeasibility,
+      targetOption,
+    };
   }
 
   const evaluate = (factors: Factors) => {
@@ -460,6 +520,111 @@ export const plan = (
       avoidedBillYear1Aed: best.finance.firstYearSavingsAed,
       ppa: ppaTerms,
     }),
+    infeasibility,
+    targetOption,
+  };
+};
+
+const targetKwh = (site: SiteProfile): number | null =>
+  site.energyTargetShare && site.energyTargetShare > 0
+    ? site.energyTargetShare * site.annualKwh
+    : null;
+
+const constraintLabel = (kind: Infeasibility["kind"]): string =>
+  ({
+    "no-tariff": "no matching tariff",
+    "regulatory-cap": "the grid connection cap",
+    budget: "the stated budget",
+    area: "the mapped roof and land",
+    "self-consumption": "how much of the generation the site can use",
+    "no-options": "the site",
+  })[kind];
+
+/**
+ * Whether any buildable option reaches the site's energy target, and when none
+ * does, which single constraint is responsible. The named case is chosen by
+ * what an unconstrained build would have delivered: if even an unlimited budget
+ * cannot reach the target the binding limit is physical or regulatory, not
+ * financial.
+ */
+const assessTarget = (
+  context: PlanContext,
+  options: PlanOption[],
+  unconstrained: PlanOption[],
+): { infeasibility: Infeasibility | null; targetOption: PlanOption | null } => {
+  const target = targetKwh(context.site);
+  const budget = context.site.budgetAed;
+
+  const achievable = unconstrained.length > 0 ? unconstrained : options;
+  const maxCoverage = achievable.reduce(
+    (highest, option) => Math.max(highest, option.simulation.selfConsumedKwh),
+    0,
+  );
+
+  if (options.length === 0) {
+    const cheapest = unconstrained.reduce(
+      (lowest, option) => (option.capex.totalAed < lowest.capex.totalAed ? option : lowest),
+      unconstrained[0] ?? null,
+    );
+    if (cheapest && budget && cheapest.capex.totalAed > budget) {
+      return {
+        infeasibility: {
+          kind: "budget",
+          requiredKwh: target ?? context.load.annualKwh,
+          achievedKwh: 0,
+          shortfallKwh: target ?? context.load.annualKwh,
+          explanation: `The cheapest buildable system costs AED ${Math.round(cheapest.capex.totalAed).toLocaleString()}, against a stated ceiling of AED ${budget.toLocaleString()}. The shortfall is capital, not site.`,
+        },
+        targetOption: null,
+      };
+    }
+    return {
+      infeasibility: {
+        kind: context.cap.capKw <= 0 ? "regulatory-cap" : "area",
+        requiredKwh: target ?? context.load.annualKwh,
+        achievedKwh: 0,
+        shortfallKwh: target ?? context.load.annualKwh,
+        explanation:
+          context.cap.capKw <= 0
+            ? `The rules permit no connected capacity here: ${context.cap.explanation}`
+            : "No mapped roof or land can take an array. A usable roof polygon or land parcel has to be supplied before anything can be sized.",
+      },
+      targetOption: null,
+    };
+  }
+
+  if (target === null || maxCoverage >= target) {
+    const meets = options.filter((option) => option.simulation.selfConsumedKwh >= (target ?? 0));
+    const cheapestMeeting =
+      meets.length > 0
+        ? meets.reduce((lowest, option) =>
+            option.capex.totalAed < lowest.capex.totalAed ? option : lowest,
+          )
+        : null;
+    return { infeasibility: null, targetOption: cheapestMeeting };
+  }
+
+  // The target is unreachable. Name the blocker.
+  const biggest = achievable.reduce((top, option) =>
+    option.simulation.selfConsumedKwh > top.simulation.selfConsumedKwh ? option : top,
+  );
+  const capBlocks = context.cap.capKw !== Infinity;
+  const roofFull = biggest.bindingConstraint === "roof-area";
+  const kind: Infeasibility["kind"] = capBlocks
+    ? "regulatory-cap"
+    : roofFull
+      ? "area"
+      : "self-consumption";
+
+  return {
+    infeasibility: {
+      kind,
+      requiredKwh: target,
+      achievedKwh: maxCoverage,
+      shortfallKwh: target - maxCoverage,
+      explanation: `The target asks for ${Math.round(target).toLocaleString()} kWh a year consumed from renewables; the largest buildable option delivers ${Math.round(maxCoverage).toLocaleString()}. ${constraintLabel(kind)} is what stops the gap. ${biggest.bindingExplanation}`,
+    },
+    targetOption: null,
   };
 };
 
@@ -479,8 +644,10 @@ const identifyConstraint = (input: {
   const nearRoof = totalKwp >= (roofCeiling + context.groundFit.kwp) * 0.98;
 
   if (nearCap && capCeiling <= roofCeiling) {
+    const rule = context.cap.bindingRule;
     return {
-      constraint: context.cap.bindingRule === "plot-cap" ? "plot-cap" : "approved-load",
+      constraint:
+        rule === "plot-cap" ? "plot-cap" : rule === "tcl-slab" ? "tcl-slab" : "approved-load",
       explanation: context.cap.explanation,
     };
   }

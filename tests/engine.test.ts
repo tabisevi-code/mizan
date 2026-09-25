@@ -186,23 +186,59 @@ test("a Dubai bill adds VAT and the meter charge", () => {
 
 // --- rules -----------------------------------------------------------------
 
-test("Dubai forbids ground mount and caps capacity at the lower of approved load and 2,080 kW", () => {
+test("Dubai forbids ground mount and caps capacity by the DRRG slab share of connected load", () => {
   assert.equal(RULE_SETS.dubai.groundMountPermitted, false);
 
-  const site = makeSite({ approvedLoadKw: 1200 });
-  assert.equal(regulatoryCap(site).capKw, 1200);
-  assert.equal(regulatoryCap(site).bindingRule, "approved-load");
+  // DRRG v4.1 s2.2: 100% of the first 100 kW, 75% of 100-200, 50% of 200-400,
+  // 25% of 400-600, 5% above 600, ceiling 1,000 kW.
+  const small = makeSite({ approvedLoadKw: 80 });
+  assert.equal(regulatoryCap(small).capKw, 80);
 
-  const bigSite = makeSite({ approvedLoadKw: 5000 });
-  assert.equal(regulatoryCap(bigSite).capKw, 2080);
-  assert.equal(regulatoryCap(bigSite).bindingRule, "plot-cap");
+  const site = makeSite({ approvedLoadKw: 1200 });
+  assert.equal(regulatoryCap(site).capKw, 355);
+  assert.equal(regulatoryCap(site).bindingRule, "tcl-slab");
+
+  const mid = makeSite({ approvedLoadKw: 600 });
+  assert.equal(regulatoryCap(mid).capKw, 325);
+
+  const hugeSite = makeSite({ approvedLoadKw: 20000 });
+  assert.equal(regulatoryCap(hugeSite).capKw, 1000);
+  assert.equal(regulatoryCap(hugeSite).bindingRule, "tcl-slab");
 });
 
-test("an unknown approved load is reported rather than assumed away", () => {
+test("an unknown approved load leaves only the published per-plot ceiling", () => {
   const site = makeSite({ approvedLoadKw: undefined });
   const cap = regulatoryCap(site);
-  assert.equal(cap.capKw, 2080);
+  assert.equal(cap.capKw, 1000);
   assert.equal(cap.bindingRule, "plot-cap");
+});
+
+test("every emirate resolves a tariff", () => {
+  for (const emirate of [
+    "dubai",
+    "abu-dhabi",
+    "sharjah",
+    "ajman",
+    "umm-al-quwain",
+    "ras-al-khaimah",
+    "fujairah",
+  ] as const) {
+    const commercial = selectTariff({ emirate, customerClass: "commercial" });
+    const industrial = selectTariff({ emirate, customerClass: "industrial" });
+    assert.ok(commercial, `no commercial tariff for ${emirate}`);
+    assert.ok(industrial, `no industrial tariff for ${emirate}`);
+  }
+});
+
+test("EtihadWE and SEWA slab rates match the published schedules", () => {
+  const rak = selectTariff({ emirate: "ras-al-khaimah", customerClass: "commercial" })!;
+  assert.equal(rak.id, "etihadwe-commercial");
+  assert.equal(marginalRate(rak, 500, 0), 0.23 + 0.05);
+  assert.equal(marginalRate(rak, 20000, 0), 0.38 + 0.05);
+
+  const sewa = selectTariff({ emirate: "sharjah", customerClass: "commercial" })!;
+  assert.equal(marginalRate(sewa, 500, 0), 0.23 + 0.06);
+  assert.equal(marginalRate(sewa, 20000, 0), 0.38 + 0.06);
 });
 
 test("ground solar screens as not permitted in Dubai however much land there is", () => {
