@@ -11,10 +11,10 @@ import {
   MOUNTING_THERMAL,
   WIND_AT_MODULE,
   huldRelativeEfficiency,
-  monthOfHour,
   moduleTemperature,
   solarPosition,
   transpose,
+  type SolarYear,
   type WeatherYear,
 } from "./solar";
 import {
@@ -158,13 +158,13 @@ export const ENGINE_VALIDATION = {
   /** Leave-one-site-out, on annual AC yield per kWp. */
   yieldBias: 0.0,
   yieldMeanAbsError: 0.0109,
-  yieldWorstSite: { name: "Sila", error: 0.0311 },
+  yieldWorstSite: { name: "Sila", error: 0.0333 },
   /** In-plane irradiance, which uses no fitted parameter at all. */
   irradianceBias: 0.0026,
   irradianceMeanAbsError: 0.0151,
   /** And the clearness index behind it, from scripts/calibrate.ts. */
   irradianceSites: 32,
-  checkedOn: "2026-09-24",
+  checkedOn: "2026-09-25",
 };
 
 export type PvSimulation = {
@@ -173,6 +173,8 @@ export type PvSimulation = {
   annualKwh: number;
   /** kWh per kWp per year, the number the industry compares on. */
   specificYield: number;
+  /** In-plane irradiation over the year, kWh/m2. What PVGIS calls PVOUT's input. */
+  poaKwhPerM2: number;
   clippedKwh: number;
   lossBreakdown: { label: string; fraction: number }[];
 };
@@ -191,6 +193,8 @@ export const simulateArray = (
    * but the annual energy every financial figure rests on is right.
    */
   shadingLoss = 0,
+  /** Precomputed sun positions from `buildSolarYear`; computed per hour if absent. */
+  solarYear?: SolarYear,
 ): PvSimulation => {
   const hourlyAcKw = newSeries();
   if (spec.kwp <= 0) {
@@ -198,6 +202,7 @@ export const simulateArray = (
       hourlyAcKw,
       annualKwh: 0,
       specificYield: 0,
+      poaKwhPerM2: 0,
       clippedKwh: 0,
       lossBreakdown: [],
     };
@@ -218,7 +223,7 @@ export const simulateArray = (
     const ghi = weather.ghi[hour];
     if (ghi <= 0) continue;
 
-    const sun = solarPosition(site, hour);
+    const sun = solarYear?.position[hour] ?? solarPosition(site, hour);
     const doy = Math.floor(hour / 24) + 1;
     const poa = transpose(ghi, doy, sun, spec.tiltDeg, spec.azimuthDeg, albedo);
     if (poa.effectiveWm2 <= 0) continue;
@@ -261,6 +266,7 @@ export const simulateArray = (
     hourlyAcKw,
     annualKwh,
     specificYield: annualKwh / spec.kwp,
+    poaKwhPerM2,
     clippedKwh,
     lossBreakdown: [
       { label: "Soiling between cleans", fraction: soiling },
@@ -275,7 +281,6 @@ export const simulateArray = (
       { label: "Availability", fraction: 1 - losses.availability },
       { label: "Nameplate, part-load and mismatch", fraction: losses.otherLosses },
     ],
-    // poaKwhPerM2 is retained for the report but not part of the public shape yet.
   };
 };
 

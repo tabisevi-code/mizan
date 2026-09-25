@@ -10,6 +10,7 @@
  * way. When real interval data arrives it replaces this module entirely.
  */
 
+import { dayOfWeekIndex, monthOfHour } from "./calendar";
 import {
   HOURS_PER_YEAR,
   newSeries,
@@ -112,26 +113,18 @@ const SHAPES: Record<SectorArchetype, ShapeSpec> = {
 /** Monthly cooling weight derived from UAE ambient temperature, Jan..Dec. */
 const COOLING_WEIGHT = [0.62, 0.64, 0.72, 0.84, 0.95, 1.0, 1.0, 1.0, 0.94, 0.85, 0.73, 0.65];
 
-const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-const monthOf = (hourOfYear: number): number => {
-  let remaining = Math.floor(hourOfYear / 24) + 1;
-  for (let month = 0; month < 12; month += 1) {
-    if (remaining <= MONTH_LENGTHS[month]) return month;
-    remaining -= MONTH_LENGTHS[month];
-  }
-  return 11;
-};
-
 /**
- * Weekend detection. The UAE public-sector week is Monday to Friday with a
- * Saturday/Sunday weekend since 2022, while much of the private sector still
- * takes Friday afternoon and Saturday. A reference year starting on a Thursday
- * is used, and Saturday/Sunday are treated as the weekend.
+ * Whether an hour falls on the site's non-working pattern.
+ *
+ * The UAE statutory weekend since 2022 is Saturday and Sunday, with Friday a
+ * half-day for the public sector; much of the private sector still winds down
+ * early on Friday too. So Friday keeps the weekday shape until 13:00 and the
+ * weekend shape after, and Saturday and Sunday are weekend all day.
  */
-const isWeekend = (hourOfYear: number, firstDayOffset = 4): boolean => {
-  const dayIndex = (Math.floor(hourOfYear / 24) + firstDayOffset) % 7;
-  return dayIndex === 5 || dayIndex === 6;
+const isWeekendHour = (hourOfYear: number): boolean => {
+  const dow = dayOfWeekIndex(hourOfYear);
+  const hourOfDay = hourOfYear % 24;
+  return dow === 0 || dow === 6 || (dow === 5 && hourOfDay >= 13);
 };
 
 export type LoadProfileInput = {
@@ -155,9 +148,9 @@ export const buildLoadProfile = (input: LoadProfileInput): LoadProfile => {
   const raw = newSeries();
 
   for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
-    const month = monthOf(hour);
+    const month = monthOfHour(hour);
     const hourOfDay = hour % 24;
-    const base = isWeekend(hour) ? shape.weekend[hourOfDay] : shape.weekday[hourOfDay];
+    const base = isWeekendHour(hour) ? shape.weekend[hourOfDay] : shape.weekday[hourOfDay];
     const cooling =
       1 - shape.coolingSensitivity + shape.coolingSensitivity * COOLING_WEIGHT[month];
     raw[hour] = base * cooling;
@@ -167,9 +160,9 @@ export const buildLoadProfile = (input: LoadProfileInput): LoadProfile => {
   const hourlyKw = newSeries();
   if (input.monthlyKwh && input.monthlyKwh.length === 12) {
     const monthTotals = new Array(12).fill(0);
-    for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) monthTotals[monthOf(hour)] += raw[hour];
+    for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) monthTotals[monthOfHour(hour)] += raw[hour];
     for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
-      const month = monthOf(hour);
+      const month = monthOfHour(hour);
       hourlyKw[hour] = monthTotals[month] > 0 ? (raw[hour] / monthTotals[month]) * input.monthlyKwh[month] : 0;
     }
   } else {

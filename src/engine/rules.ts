@@ -328,6 +328,28 @@ const MODEL_SOURCE: Provenance = {
 };
 
 /**
+ * The bars a technology has to clear before it is even worth an evidence call.
+ * Each is the roughest defensible figure for the Gulf; challenge them with a
+ * source before tightening them.
+ */
+export const SCREEN_THRESHOLDS = {
+  /** Usable roof area below which no worthwhile array fits, m2. */
+  minRoofAreaM2: 200,
+  /** Open land below which a ground mount is not worth connecting, m2. */
+  minGroundAreaM2: 1000,
+  /** Annual mean wind at hub height for a small turbine to pay back, m/s. */
+  viableWindMs: 5.5,
+  /** Contracted feedstock that makes biomass worth an evidence call, dry t/day. */
+  biomassFeedstockTpd: 1.5,
+  /** Hydraulic potential that makes a flow survey worth commissioning, kW. */
+  hydroPotentialKw: 5,
+  /** Tidal stream potential that makes an ADCP survey worth it, kW. */
+  tidalPotentialKw: 10,
+  /** Combined gradient/depth index for geothermal electricity. */
+  geothermalIndex: 0.45,
+};
+
+/**
  * Screen every technology against what the site has actually proven and what
  * the emirate permits. The point of keeping the marine and geothermal options
  * in the product is to return a defensible no with a reason, not to imply they
@@ -343,14 +365,14 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
     id: "roof-solar",
     label: "Rooftop solar",
     status:
-      roofAreaM2 < 200
+      roofAreaM2 < SCREEN_THRESHOLDS.minRoofAreaM2
         ? "not-viable"
         : evidence.hasStructuralReserve
           ? "eligible"
           : structure.status,
     reason:
-      roofAreaM2 < 200
-        ? "Less than 200 m2 of usable roof was mapped, which cannot carry a worthwhile array."
+      roofAreaM2 < SCREEN_THRESHOLDS.minRoofAreaM2
+        ? `Less than ${SCREEN_THRESHOLDS.minRoofAreaM2} m2 of usable roof was mapped, which cannot carry a worthwhile array.`
         : `${Math.round(roofAreaM2).toLocaleString()} m2 of roof mapped. ${structure.headline}.`,
     unblockedBy: evidence.hasStructuralReserve
       ? undefined
@@ -363,15 +385,15 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
     label: "Ground-mounted solar",
     status: !rules.groundMountPermitted
       ? "not-permitted"
-      : groundAreaM2 < 1000
+      : groundAreaM2 < SCREEN_THRESHOLDS.minGroundAreaM2
         ? "not-viable"
         : evidence.hasLandRights
           ? "eligible"
           : "needs-evidence",
     reason: !rules.groundMountPermitted
       ? `${rules.scheme} does not permit ground-mounted systems, so this cannot be connected in ${labelEmirate(site.emirate)} whatever the land area.`
-      : groundAreaM2 < 1000
-        ? "Less than 1,000 m2 of open land was mapped after setbacks."
+      : groundAreaM2 < SCREEN_THRESHOLDS.minGroundAreaM2
+        ? `Less than ${SCREEN_THRESHOLDS.minGroundAreaM2.toLocaleString()} m2 of open land was mapped after setbacks.`
         : `${Math.round(groundAreaM2).toLocaleString()} m2 of open land was mapped.`,
     unblockedBy:
       rules.groundMountPermitted && !evidence.hasLandRights
@@ -384,12 +406,17 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   results.push({
     id: "wind",
     label: "Small wind",
-    status: wind === undefined ? "needs-evidence" : wind < 5.5 ? "not-viable" : "eligible",
+    status:
+      wind === undefined
+        ? "needs-evidence"
+        : wind < SCREEN_THRESHOLDS.viableWindMs
+          ? "not-viable"
+          : "eligible",
     reason:
       wind === undefined
         ? "No measured wind speed at hub height has been supplied. Coastal UAE annual means are typically 3 to 4 m/s at 10 m, which is below the economic threshold for small turbines."
-        : wind < 5.5
-          ? `Measured mean wind of ${wind.toFixed(1)} m/s is below the roughly 5.5 m/s needed for a small turbine to pay back.`
+        : wind < SCREEN_THRESHOLDS.viableWindMs
+          ? `Measured mean wind of ${wind.toFixed(1)} m/s is below the roughly ${SCREEN_THRESHOLDS.viableWindMs} m/s needed for a small turbine to pay back.`
           : `Measured mean wind of ${wind.toFixed(1)} m/s could support a small turbine.`,
     unblockedBy:
       wind === undefined
@@ -402,13 +429,13 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   results.push({
     id: "biomass",
     label: "Biomass",
-    status: biomass >= 1.5 ? "needs-evidence" : "not-viable",
+    status: biomass >= SCREEN_THRESHOLDS.biomassFeedstockTpd ? "needs-evidence" : "not-viable",
     reason:
-      biomass >= 1.5
+      biomass >= SCREEN_THRESHOLDS.biomassFeedstockTpd
         ? `${biomass.toFixed(1)} dry tonnes per day of contracted feedstock was declared.`
         : "No contracted feedstock was declared. A map cannot prove a fuel supply, and an uncontracted waste stream is not a resource.",
     unblockedBy:
-      biomass >= 1.5
+      biomass >= SCREEN_THRESHOLDS.biomassFeedstockTpd
         ? "Signed multi-year feedstock supply, storage and handling design, and an emissions permit path."
         : "A signed feedstock contract stating dry tonnes per day and moisture content.",
     provenance: MODEL_SOURCE,
@@ -419,13 +446,15 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   results.push({
     id: "hydro",
     label: "Micro hydro",
-    status: hydroKw >= 5 ? "needs-evidence" : "not-viable",
+    status: hydroKw >= SCREEN_THRESHOLDS.hydroPotentialKw ? "needs-evidence" : "not-viable",
     reason:
-      hydroKw >= 5
+      hydroKw >= SCREEN_THRESHOLDS.hydroPotentialKw
         ? `Declared flow and head give roughly ${Math.round(hydroKw)} kW of hydraulic potential.`
         : "No perennial watercourse with usable head has been declared. The UAE has no perennial rivers, so this is normally a no before any survey.",
     unblockedBy:
-      hydroKw >= 5 ? "A flow-duration curve, a surveyed head, and water abstraction rights." : undefined,
+      hydroKw >= SCREEN_THRESHOLDS.hydroPotentialKw
+        ? "A flow-duration curve, a surveyed head, and water abstraction rights."
+        : undefined,
     provenance: MODEL_SOURCE,
   });
 
@@ -434,13 +463,13 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   results.push({
     id: "tidal",
     label: "Tidal stream",
-    status: tidalKw >= 10 ? "needs-evidence" : "not-viable",
+    status: tidalKw >= SCREEN_THRESHOLDS.tidalPotentialKw ? "needs-evidence" : "not-viable",
     reason:
-      tidalKw >= 10
+      tidalKw >= SCREEN_THRESHOLDS.tidalPotentialKw
         ? `Declared current and swept area give roughly ${Math.round(tidalKw)} kW.`
         : "No measured tidal current has been declared. Gulf tidal streams are generally well under the roughly 2 m/s that tidal turbines need, and output falls with the cube of speed.",
     unblockedBy:
-      tidalKw >= 10
+      tidalKw >= SCREEN_THRESHOLDS.tidalPotentialKw
         ? "An ADCP current survey, bathymetry, a marine works permit and a cable landing route."
         : undefined,
     provenance: MODEL_SOURCE,
@@ -451,13 +480,13 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   results.push({
     id: "geothermal",
     label: "Geothermal",
-    status: geoIndex >= 0.45 ? "needs-evidence" : "not-viable",
+    status: geoIndex >= SCREEN_THRESHOLDS.geothermalIndex ? "needs-evidence" : "not-viable",
     reason:
-      geoIndex >= 0.45
+      geoIndex >= SCREEN_THRESHOLDS.geothermalIndex
         ? `Declared gradient and depth suggest a resource worth a feasibility study.`
         : "No measured gradient has been declared. Power generation needs a well above roughly 120 C; shallow UAE gradients suit heating and cooling, not electricity.",
     unblockedBy:
-      geoIndex >= 0.45
+      geoIndex >= SCREEN_THRESHOLDS.geothermalIndex
         ? "A gradient survey or nearby well logs, a drilling risk assessment and a reinjection plan."
         : undefined,
     provenance: MODEL_SOURCE,

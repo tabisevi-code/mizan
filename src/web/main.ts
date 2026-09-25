@@ -11,20 +11,22 @@
  * tool that shows nothing until they do is a tool nobody sees working.
  */
 
-import { metresToLngLat, packRoof, plantPositions, type PolygonM } from "../engine/packing";
+import { metresToLngLat, plantPositions, type PackResult, type PolygonM } from "../engine/packing";
 import { SECTOR_LABELS } from "../engine/load";
-import { plan, type CapacityOverride, type PlanResult } from "../engine/plan";
+import { analyzeRoof } from "../engine/analyze";
+import { type PlanResult } from "../engine/plan";
+import { buildReport } from "../engine/report";
+import { siteReportPdf } from "./pdf-report";
 import { RULE_SETS, labelEmirate } from "../engine/rules";
 import { DEFAULT_PACK } from "../engine/packing";
 import { DEFAULT_USABLE_AREA } from "../engine/capacity";
 import { DEFAULT_ROOF_TILT_DEG, ENGINE_VALIDATION, DEFAULT_PV_LOSSES, meanSoilingLoss, simulateArray } from "../engine/pv";
-import { CLEARNESS_FIT, modelledWeatherYear, type WeatherYear } from "../engine/solar";
+import { CLEARNESS_FIT, type WeatherYear } from "../engine/solar";
 import {
   buildSkyEnergy,
   neighbourObstructions,
   obstructionShading,
   rowShading,
-  shadingCurve,
   thinRows,
   type ObstructionShading,
   type ShadingResult,
@@ -383,6 +385,7 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
     byId("register").innerHTML = "";
     byId("register-summary").textContent = "";
     byId("trust").innerHTML = "";
+    byId("report-block").hidden = true;
     return;
   }
   const { result } = outcome;
@@ -496,6 +499,67 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
       Before money is spent: have the roof structure assessed, pull interval meter data and
       confirm the approved load on the account.
     </p>`;
+
+  byId("report-block").hidden = false;
+  const download = byId<HTMLButtonElement>("report-download");
+  download.onclick = () => downloadReport(site, outcome);
+  byId<HTMLButtonElement>("report-pdf").onclick = () => downloadPdf(site, outcome);
+};
+
+const siteReport = (outcome: Outcome) =>
+  buildReport({
+    site: outcome.profile,
+    result: outcome.result,
+    verdict: { status: outcome.status, headline: outcome.headline, reason: outcome.reason },
+    packedKwp: outcome.packed.kwp,
+    packedModuleCount: outcome.packed.moduleCount,
+    rowShadingLoss: outcome.shading?.electricalArrayLoss ?? null,
+    obstructionLoss: outcome.blocked?.arrayLossOfPoa ?? null,
+    designWarnings: outcome.design?.warnings ?? [],
+  });
+
+const saveFile = (bytes: BlobPart, type: string, name: string) => {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const downloadReport = (site: PortfolioSite, outcome: Outcome) => {
+  const report = siteReport(outcome);
+  saveFile(
+    JSON.stringify(report, null, 2),
+    "application/json",
+    `mizan-report-${site.id}-${report.generatedAt.slice(0, 10)}.json`,
+  );
+};
+
+const downloadPdf = async (site: PortfolioSite, outcome: Outcome) => {
+  const report = siteReport(outcome);
+  const best = outcome.result.best;
+  // Monthly generation for the recommended array: the location's monthly
+  // yield shape scaled to the modelled annual output — same scaling the
+  // on-screen energy-mix panel uses.
+  const monthlyKwh = best
+    ? solarMonthlyYield(report.site.location).map(
+        (perKw) =>
+          (perKw * best.simulation.generationKwh) /
+          Math.max(1, solarMonthlyYield(report.site.location).reduce((a, b) => a + b, 0)),
+      )
+    : null;
+  const bytes = await siteReportPdf({
+    report,
+    monthlyKwh,
+    cashflowCumulativeAed: best ? best.finance.cashflow.map((year) => year.cumulativeAed) : null,
+  });
+  saveFile(
+    bytes.slice().buffer as ArrayBuffer,
+    "application/pdf",
+    `mizan-report-${site.id}-${report.generatedAt.slice(0, 10)}.pdf`,
+  );
 };
 
 // --- sheets -----------------------------------------------------------------

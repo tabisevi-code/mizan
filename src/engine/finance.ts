@@ -16,7 +16,7 @@ export const COST_SOURCE: Provenance = {
   url: "https://www.sun2x.ae/blog/solar-cost-dubai-2026.html",
   asOf: "2026-09-23",
   caveat:
-    "Published vendor ranges for UAE commercial rooftop, tapered by system size. Replace with quoted prices before any decision.",
+    "Published vendor ranges for UAE commercial rooftop, tapered by system size. Balance-of-system specifics — cable metres, string counts, inverter count from the electrical design — are inside this flat per-kW rate rather than priced separately. Quoted ex-VAT: a VAT-registered business reclaims the 5% input VAT, so ex-VAT capex is the basis the (VAT-inclusive) bill savings should be compared against. Replace with quoted prices before any decision.",
 };
 
 export const OM_SOURCE: Provenance = {
@@ -102,6 +102,11 @@ export type FinanceAssumptions = {
   discountRate: number;
   /** Expected annual rise in the electricity tariff. */
   tariffEscalation: number;
+  /**
+   * Annual rise in the O&M rate. Holding O&M flat while savings escalate
+   * would flatter every project, so it escalates with general prices.
+   */
+  omEscalation: number;
   /** Module output decline per year. */
   degradationPerYear: number;
   omAedPerKwYear: number;
@@ -136,6 +141,7 @@ export const CORPORATE_TAX_SOURCE: Provenance = {
 export const DEFAULT_FINANCE: FinanceAssumptions = {
   discountRate: 0.08,
   tariffEscalation: 0.02,
+  omEscalation: 0.02,
   degradationPerYear: 0.005,
   omAedPerKwYear: 55,
   inverterReplacementYear: 12,
@@ -215,7 +221,8 @@ export const evaluateFinance = (input: FinanceInput): FinanceResult => {
     const escalation = (1 + assumptions.tariffEscalation) ** (year - 1);
     const generationKwh = input.firstYearGenerationKwh * degradation;
     const savingsAed = input.firstYearSavingsAed * degradation * escalation;
-    const omAed = input.installedKw * assumptions.omAedPerKwYear;
+    const omAed =
+      input.installedKw * assumptions.omAedPerKwYear * (1 + assumptions.omEscalation) ** (year - 1);
     const batteryReplacementAed =
       input.batteryCapexAed > 0 && year === assumptions.batteryReplacementYear
         ? input.batteryCapexAed * assumptions.batteryReplacementShare

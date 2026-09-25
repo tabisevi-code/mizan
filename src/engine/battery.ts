@@ -10,7 +10,7 @@
  * point.
  */
 
-import type { Tariff } from "./tariff";
+import { inToUPeak, type Tariff } from "./tariff";
 import {
   HOURS_PER_YEAR,
   newSeries,
@@ -37,27 +37,21 @@ export const DEFAULT_BATTERY: Omit<BatterySpec, "capacityKwh" | "powerKw"> = {
   reserveFraction: 0,
 };
 
-/** Hours ahead to look for an upcoming peak window before holding charge back. */
-const PEAK_LOOKAHEAD_HOURS = 3;
-/** Fraction of usable capacity held back for an upcoming peak window. */
-const PEAK_RESERVE_FRACTION = 0.5;
+const isPeakHour = (tariff: Tariff | null, hourOfYear: number): boolean =>
+  tariff ? inToUPeak(tariff, hourOfYear) : false;
 
-const isPeakHour = (tariff: Tariff | null, hourOfYear: number): boolean => {
-  if (!tariff?.timeOfUse) return false;
-  const monthLengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  let remaining = Math.floor(hourOfYear / 24) + 1;
-  let month = 0;
-  for (; month < 12; month += 1) {
-    if (remaining <= monthLengths[month]) break;
-    remaining -= monthLengths[month];
-  }
-  const hour = hourOfYear % 24;
-  return (
-    tariff.timeOfUse.months.includes(month + 1) &&
-    hour >= tariff.timeOfUse.startHour &&
-    hour < tariff.timeOfUse.endHour
-  );
-};
+/**
+ * How far ahead of a peak window the battery starts keeping charge back.
+ * Three hours of surplus-free run-up is enough for a battery that charged on
+ * solar earlier the same day; more would idle capacity for no gain.
+ */
+const PEAK_LOOKAHEAD_HOURS = 3;
+/**
+ * Share of usable capacity held back when a peak window is close. Holding
+ * everything would waste cheap off-peak hours; half keeps a real reserve
+ * without idling the battery for the whole shoulder.
+ */
+const PEAK_HOLDBACK_FRACTION = 0.5;
 
 export const simulateDispatch = (
   generationKw: HourlySeries,
@@ -85,7 +79,9 @@ export const simulateDispatch = (
 
     if (battery && battery.capacityKwh > 0) {
       const peakNow = isPeakHour(tariff, hour);
-      const nextPeakSoon = tariff?.timeOfUse ? isPeakHour(tariff, (hour + PEAK_LOOKAHEAD_HOURS) % HOURS_PER_YEAR) : false;
+      const nextPeakSoon = tariff?.timeOfUse
+        ? isPeakHour(tariff, (hour + PEAK_LOOKAHEAD_HOURS) % HOURS_PER_YEAR)
+        : false;
 
       if (surplus > 0) {
         // Charge from surplus only.
@@ -102,7 +98,8 @@ export const simulateDispatch = (
         const deficit = -surplus;
         // Under a time-of-use tariff, hold charge for the peak window unless we
         // are already in it.
-        const holdBack = !peakNow && nextPeakSoon ? usableKwh * PEAK_RESERVE_FRACTION : reserveKwh;
+        const holdBack =
+          !peakNow && nextPeakSoon ? usableKwh * PEAK_HOLDBACK_FRACTION : reserveKwh;
         const available = Math.max(0, soc - holdBack);
         const discharge = Math.min(deficit, battery.powerKw, available * legEfficiency);
         if (discharge > 0) {
