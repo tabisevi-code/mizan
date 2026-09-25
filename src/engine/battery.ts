@@ -37,6 +37,11 @@ export const DEFAULT_BATTERY: Omit<BatterySpec, "capacityKwh" | "powerKw"> = {
   reserveFraction: 0,
 };
 
+/** Hours ahead to look for an upcoming peak window before holding charge back. */
+const PEAK_LOOKAHEAD_HOURS = 3;
+/** Fraction of usable capacity held back for an upcoming peak window. */
+const PEAK_RESERVE_FRACTION = 0.5;
+
 const isPeakHour = (tariff: Tariff | null, hourOfYear: number): boolean => {
   if (!tariff?.timeOfUse) return false;
   const monthLengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -80,7 +85,7 @@ export const simulateDispatch = (
 
     if (battery && battery.capacityKwh > 0) {
       const peakNow = isPeakHour(tariff, hour);
-      const nextPeakSoon = tariff?.timeOfUse ? isPeakHour(tariff, (hour + 3) % HOURS_PER_YEAR) : false;
+      const nextPeakSoon = tariff?.timeOfUse ? isPeakHour(tariff, (hour + PEAK_LOOKAHEAD_HOURS) % HOURS_PER_YEAR) : false;
 
       if (surplus > 0) {
         // Charge from surplus only.
@@ -97,7 +102,7 @@ export const simulateDispatch = (
         const deficit = -surplus;
         // Under a time-of-use tariff, hold charge for the peak window unless we
         // are already in it.
-        const holdBack = !peakNow && nextPeakSoon ? usableKwh * 0.5 : reserveKwh;
+        const holdBack = !peakNow && nextPeakSoon ? usableKwh * PEAK_RESERVE_FRACTION : reserveKwh;
         const available = Math.max(0, soc - holdBack);
         const discharge = Math.min(deficit, battery.powerKw, available * legEfficiency);
         if (discharge > 0) {
