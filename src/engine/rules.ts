@@ -8,6 +8,9 @@
  */
 
 import { HYDRO_TURBINE_EFFICIENCY } from "./renewable-combinations";
+import { windMonthlyKwhPerKw } from "./resource";
+import { nearestWindSite, siteDistanceKm } from "./wind-sites";
+import { WIND_CLIMATE_META, windYield } from "./wind";
 import type {
   ScreenStatus,
   Emirate,
@@ -37,8 +40,10 @@ export type RuleSet = {
    * ceiling of 1,000 kW near 14.1 MW of connected load.
    */
   tclSlabs?: TclSlab[];
-  /** True when PV capacity may not exceed the account's Approved Load. */
+  /** True when PV capacity is bounded by the account's Approved Load (or a published fraction of it). */
   cappedByApprovedLoad: boolean;
+  /** Fraction of Approved Load a unit may connect, where the scheme publishes one (EtihadWE: 10%). */
+  approvedLoadFraction?: number;
   groundMountPermitted: boolean;
   /**
    * True when the emirate's electricity law reserves generation to the
@@ -54,6 +59,8 @@ export type RuleSet = {
   /** True when only utility-enrolled contractors may design and install. */
   enrolledContractorRequired: boolean;
   connectionFeeAed: number | null;
+  /** Published connection path for technologies other than solar PV. "none" means none is published. */
+  nonSolarScheme: string;
   confidence: "published" | "partial" | "unverified";
   provenance: Provenance;
   notes: string[];
@@ -77,6 +84,7 @@ export const RULE_SETS: Record<Emirate, RuleSet> = {
     exportTreatment: "credit-rollover-indefinite",
     enrolledContractorRequired: true,
     connectionFeeAed: 1500,
+    nonSolarScheme: "none",
     confidence: "published",
     provenance: {
       kind: "authority",
@@ -91,7 +99,8 @@ export const RULE_SETS: Record<Emirate, RuleSet> = {
       "Surplus export is credited to future bills indefinitely and is never paid out in cash.",
       "Third-party off-grid generation is prohibited in Dubai under Law 27 of 2021 except backup plant and written exceptions.",
       "An annual connection cap applies across the emirate, so approval also depends on capacity left in the year's queue.",
-      "Design and installation must be by a DEWA-enrolled DRRG consultant and contractor.",
+      "Design and installation must be by a DEWA-enrolled DRRG consultant and contractor, and DEWA design approval is required in all cases.",
+      "The published scheme covers solar PV only; wind, biogas and other generation require a bespoke RSB generation licence, as Al Rawabi's EG-03/2019 shows.",
     ],
   },
   "abu-dhabi": {
@@ -104,10 +113,11 @@ export const RULE_SETS: Record<Emirate, RuleSet> = {
     exportTreatment: "none",
     enrolledContractorRequired: true,
     connectionFeeAed: null,
+    nonSolarScheme: "DoE self-supply licence framework (bespoke)",
     confidence: "partial",
     provenance: {
       kind: "authority",
-      label: "Abu Dhabi DoE self-supply policy (Resolution 20 of 2026)",
+      label: "Abu Dhabi DoE self-supply policy DoE/ED/G04/005 (Resolution 20 of 2026)",
       url: "https://www.doe.gov.ae/-/media/Project/DOE/Department-Of-Energy/Media-Center-Publications/2026/Feb/PV-and-Battery-Energy-Storage-Systems-For-Self-Supply-Policy.pdf",
       asOf: "2026-09-25",
       caveat:
@@ -117,6 +127,8 @@ export const RULE_SETS: Record<Emirate, RuleSet> = {
       "Distributed PV and PV-plus-battery self-supply is permitted for businesses under Executive Council Resolution 20 of 2026.",
       "Net metering, cross-plot sales and private wires are not permitted unless the DoE explicitly authorises them, so no export credit is modelled.",
       "Capacity limits are set by implementing instruments rather than the policy itself; sizing falls back to the site's own approved load.",
+      "Self-supply requires a Self-Supply Licence under Abu Dhabi Law No. 2 of 1998; the licensing guide is DoE/ED/P04/005.",
+      "New self-supply licences for industrial consumers are paused until the Self-Supply Committee's threshold and framework are approved; large consumers are assessed case-by-case.",
     ],
   },
   sharjah: {
@@ -129,14 +141,20 @@ export const RULE_SETS: Record<Emirate, RuleSet> = {
     exportTreatment: "unknown",
     enrolledContractorRequired: true,
     connectionFeeAed: null,
+    nonSolarScheme: "none published",
     confidence: "unverified",
     provenance: {
       kind: "authority",
-      label: "SEWA",
-      asOf: "2026-09-23",
-      caveat: "No authoritative distributed-generation scheme found. Confirm with SEWA directly.",
+      label: "SEWA + Federal Decree-Law 17/2022",
+      url: "https://uaelegislation.gov.ae/en/legislations/1567",
+      asOf: "2026-09-25",
+      caveat:
+        "Federal Decree-Law 17/2022 obliges every distribution utility to accept distributed renewable connections under MoEI rules, but SEWA's own published customer scheme was not found. Confirm with SEWA directly.",
     },
-    notes: ["Treat any Sharjah export or net-metering assumption as unverified."],
+    notes: [
+      "Federal Decree-Law 17/2022 (effective 28 October 2022) applies to all producers, including free zones.",
+      "Treat any Sharjah export or net-metering assumption as unverified until SEWA publishes its process.",
+    ],
   },
   ajman: northernEmirates("ajman"),
   "umm-al-quwain": northernEmirates("umm-al-quwain"),
@@ -147,25 +165,30 @@ export const RULE_SETS: Record<Emirate, RuleSet> = {
 function northernEmirates(emirate: Emirate): RuleSet {
   return {
     emirate,
-    scheme: "EtihadWE Distributed Solar System",
-    plotCapKw: null,
+    scheme: "EtihadWE DER connection (MoEI decision, Nov 2024)",
+    plotCapKw: 1000,
     cappedByApprovedLoad: true,
+    approvedLoadFraction: 0.1,
     groundMountPermitted: true,
     offGridProhibited: false,
     exportTreatment: "credit-expires-annually",
     enrolledContractorRequired: true,
     connectionFeeAed: null,
+    nonSolarScheme: "same DER framework (renewable production units)",
     confidence: "partial",
     provenance: {
       kind: "authority",
-      label: "EtihadWE distributed solar",
-      url: "https://en.aletihad.ae/news/uae/4515795/",
-      asOf: "2026-09-23",
+      label: "Federal Decree-Law 17/2022 + MoEI ministerial decision (Nov 2024)",
+      url: "https://uaelegislation.gov.ae/en/legislations/1567",
+      asOf: "2026-09-25",
+      caveat:
+        "The 10%-of-approved-load and 1 MW-per-unit figures are reported from the MoEI ministerial decision in press coverage (Aletihad, Nov 2024); the decision text itself was not obtained. Confirm the exact cap with EtihadWE.",
     },
     notes: [
-      "A separate meter is required for the generator.",
-      "Surplus credit expires within the same year, unlike Dubai's indefinite rollover.",
-      "Municipal structural approval and an EtihadWE-certified contractor are required.",
+      "Distributed renewable units may connect up to 10% of the account's approved electric load, capped at 1 MW per unit.",
+      "Eligible customer classes: residential, agricultural (non-commercial buildings) and industrial customers not already on an industrial support initiative.",
+      "Two meters: one for export to the EtihadWE network, one for import. Monthly netting; surplus credit offsets bills within the same year. No cash compensation for exported electricity.",
+      "A licensed consultant and installer, EtihadWE approval, a signed connection agreement, and building/rooftop approval from the relevant authority are all required before installation.",
     ],
   };
 }
@@ -197,24 +220,37 @@ export const tclSlabCapKw = (totalConnectedLoadKw: number, slabs: TclSlab[]): nu
   return allowed;
 };
 
-export const regulatoryCap = (site: SiteProfile): CapResult => {
-  const rules = RULE_SETS[site.emirate];
+export const regulatoryCap = (site: SiteProfile): CapResult =>
+  regulatoryCapFor(site.emirate, site.approvedLoadKw ?? null);
+
+/**
+ * The same cap from the two facts it actually depends on, so every planner in
+ * the app (the roof planner, the mix recommender, the custom-site flow) reads
+ * the connection limit from one formula.
+ */
+export const regulatoryCapFor = (emirate: Emirate, approvedLoadKw: number | null): CapResult => {
+  const rules = RULE_SETS[emirate];
   const limits: { kw: number; rule: CapResult["bindingRule"]; text: string }[] = [];
+  const approved = approvedLoadKw !== null && Number.isFinite(approvedLoadKw) && approvedLoadKw > 0 ? approvedLoadKw : null;
 
   // The site's single approved-load figure stands in for the plot's Total
   // Connected Load: a multi-account plot's true TCL is the sum across every
   // consumption account, so this is conservative where several accounts exist.
-  if (rules.tclSlabs && site.approvedLoadKw && site.approvedLoadKw > 0) {
+  if (rules.tclSlabs && approved !== null) {
     limits.push({
-      kw: Math.min(rules.plotCapKw ?? Infinity, tclSlabCapKw(site.approvedLoadKw, rules.tclSlabs)),
+      kw: Math.min(rules.plotCapKw ?? Infinity, tclSlabCapKw(approved, rules.tclSlabs)),
       rule: "tcl-slab",
-      text: `${rules.scheme} allows a sliding share of Total Connected Load — on a TCL of ${site.approvedLoadKw.toLocaleString()} kW that is ${Math.round(tclSlabCapKw(site.approvedLoadKw, rules.tclSlabs)).toLocaleString()} kW.`,
+      text: `${rules.scheme} allows a sliding share of Total Connected Load — on a TCL of ${approved.toLocaleString()} kW that is ${Math.round(tclSlabCapKw(approved, rules.tclSlabs)).toLocaleString()} kW.`,
     });
-  } else if (rules.cappedByApprovedLoad && site.approvedLoadKw && site.approvedLoadKw > 0) {
+  } else if (rules.cappedByApprovedLoad && approved !== null) {
+    const fraction = rules.approvedLoadFraction ?? 1;
     limits.push({
-      kw: site.approvedLoadKw,
+      kw: fraction * approved,
       rule: "approved-load",
-      text: `${rules.scheme} caps installed capacity at the plot's Approved Load of ${site.approvedLoadKw.toLocaleString()} kW.`,
+      text:
+        fraction === 1
+          ? `${rules.scheme} caps installed capacity at the plot's Approved Load of ${approved.toLocaleString()} kW.`
+          : `${rules.scheme} permits up to ${Math.round(fraction * 100)}% of the plot's Approved Load of ${approved.toLocaleString()} kW, i.e. ${Math.round(fraction * approved).toLocaleString()} kW.`,
     });
   }
   if (rules.plotCapKw) {
@@ -328,6 +364,97 @@ const MODEL_SOURCE: Provenance = {
 };
 
 /**
+ * The bars a technology has to clear before it is even worth an evidence call.
+ * Each is the roughest defensible figure for the Gulf; challenge them with a
+ * source before tightening them.
+ */
+export const SCREEN_THRESHOLDS = {
+  /** Usable roof area below which no worthwhile array fits, m2. */
+  minRoofAreaM2: 200,
+  /** Open land below which a ground mount is not worth connecting, m2. */
+  minGroundAreaM2: 1000,
+  /** Annual mean wind at hub height for a small turbine to pay back, m/s. */
+  viableWindMs: 5.5,
+  /** Contracted feedstock that makes biomass worth an evidence call, dry t/day. */
+  biomassFeedstockTpd: 1.5,
+  /** Hydraulic potential that makes a flow survey worth commissioning, kW. */
+  hydroPotentialKw: 5,
+  /** Tidal stream potential that makes an ADCP survey worth it, kW. */
+  tidalPotentialKw: 10,
+  /** Combined gradient/depth index for geothermal electricity. */
+  geothermalIndex: 0.45,
+  /** Modelled capacity factor below which small wind is screened out without a mast. */
+  minModelledWindCf: 0.12,
+  /** Modelled capacity factor above which a measurement campaign is worth paying for. */
+  campaignWindCf: 0.18,
+  /**
+   * How far a Global Wind Atlas climate point may be from the site before the
+   * coarser NASA POWER grid is used instead: a 3 km Atlas pixel 40 km away in
+   * different terrain says nothing about the parcel.
+   */
+  windClimatePointReachKm: 40,
+};
+
+export type ModelledWind = {
+  capacityFactor: number;
+  hubSpeedMs: number | null;
+  provenance: Provenance;
+  detail: string;
+};
+
+/**
+ * The best wind estimate the committed datasets allow without a mast. Inside
+ * reach of a configured Atlas/ERA5 climate point that model runs a 100 kW
+ * machine through the fitted monthly Weibull; elsewhere the NASA POWER 50 m
+ * monthly means go through the generic Rayleigh curve. The provenance says
+ * which, and both are labelled as models.
+ */
+export const modelledWind = (site: SiteProfile): ModelledWind | null => {
+  const nearest = nearestWindSite(site.location.lat, site.location.lng);
+  const distanceKm = siteDistanceKm(site.location, nearest);
+  if (distanceKm <= SCREEN_THRESHOLDS.windClimatePointReachKm) {
+    try {
+      const modelled = windYield(nearest.id, "small-100");
+      return {
+        capacityFactor: modelled.capacityFactor,
+        hubSpeedMs: modelled.hubSpeedMs,
+        detail: `the nearest climate point (${nearest.name}, ${Math.round(distanceKm)} km away) models a 100 kW machine at ${Math.round(modelled.capacityFactor * 100)}% capacity factor`,
+        provenance: {
+          kind: "dataset",
+          label: `Global Wind Atlas + ERA5 at ${nearest.name}`,
+          url: "https://globalwindatlas.info/",
+          asOf: WIND_CLIMATE_META.retrieved,
+          caveat:
+            "Gridded models at the nearest climate point, not a site mast. Orographic and micro-siting effects at the parcel itself are unresolved.",
+        },
+      };
+    } catch {
+      // fall through to the resource grid
+    }
+  }
+  try {
+    const monthly = windMonthlyKwhPerKw(site.location, 30);
+    const annual = monthly.reduce((sum, value) => sum + value, 0);
+    if (!Number.isFinite(annual)) return null;
+    const capacityFactor = annual / 8760;
+    return {
+      capacityFactor,
+      hubSpeedMs: null,
+      detail: `the NASA POWER 50 m climatology at the nearest grid point models a small turbine at ${Math.round(capacityFactor * 100)}% capacity factor`,
+      provenance: {
+        kind: "dataset",
+        label: "NASA POWER 50 m wind climatology, Rayleigh capacity factor",
+        url: "https://power.larc.nasa.gov/",
+        caveat:
+          "Half-degree reanalysis at the nearest grid point run through a generic small-turbine curve. A screening number, not a resource assessment.",
+      },
+    };
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Screen every technology against what the site has actually proven and what
  * the emirate permits. The point of keeping the marine and geothermal options
  * in the product is to return a defensible no with a reason, not to imply they
@@ -343,14 +470,14 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
     id: "roof-solar",
     label: "Rooftop solar",
     status:
-      roofAreaM2 < 200
+      roofAreaM2 < SCREEN_THRESHOLDS.minRoofAreaM2
         ? "not-viable"
         : evidence.hasStructuralReserve
           ? "eligible"
           : structure.status,
     reason:
-      roofAreaM2 < 200
-        ? "Less than 200 m2 of usable roof was mapped, which cannot carry a worthwhile array."
+      roofAreaM2 < SCREEN_THRESHOLDS.minRoofAreaM2
+        ? `Less than ${SCREEN_THRESHOLDS.minRoofAreaM2} m2 of usable roof was mapped, which cannot carry a worthwhile array.`
         : `${Math.round(roofAreaM2).toLocaleString()} m2 of roof mapped. ${structure.headline}.`,
     unblockedBy: evidence.hasStructuralReserve
       ? undefined
@@ -363,15 +490,15 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
     label: "Ground-mounted solar",
     status: !rules.groundMountPermitted
       ? "not-permitted"
-      : groundAreaM2 < 1000
+      : groundAreaM2 < SCREEN_THRESHOLDS.minGroundAreaM2
         ? "not-viable"
         : evidence.hasLandRights
           ? "eligible"
           : "needs-evidence",
     reason: !rules.groundMountPermitted
       ? `${rules.scheme} does not permit ground-mounted systems, so this cannot be connected in ${labelEmirate(site.emirate)} whatever the land area.`
-      : groundAreaM2 < 1000
-        ? "Less than 1,000 m2 of open land was mapped after setbacks."
+      : groundAreaM2 < SCREEN_THRESHOLDS.minGroundAreaM2
+        ? `Less than ${SCREEN_THRESHOLDS.minGroundAreaM2.toLocaleString()} m2 of open land was mapped after setbacks.`
         : `${Math.round(groundAreaM2).toLocaleString()} m2 of open land was mapped.`,
     unblockedBy:
       rules.groundMountPermitted && !evidence.hasLandRights
@@ -381,34 +508,55 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   });
 
   const wind = evidence.measuredWindMs;
+  const modelled = wind === undefined ? modelledWind(site) : null;
+  const windStatus: ScreenStatus =
+    wind !== undefined
+      ? wind < SCREEN_THRESHOLDS.viableWindMs
+        ? "not-viable"
+        : "eligible"
+      : modelled === null
+        ? "needs-evidence"
+        : modelled.capacityFactor < SCREEN_THRESHOLDS.minModelledWindCf
+          ? "not-viable"
+          : "needs-evidence";
+  const nonSolarNote =
+    rules.nonSolarScheme === "none"
+      ? ` ${rules.scheme} covers solar only; wind needs a bespoke generation licence.`
+      : "";
   results.push({
     id: "wind",
     label: "Small wind",
-    status: wind === undefined ? "needs-evidence" : wind < 5.5 ? "not-viable" : "eligible",
+    status: windStatus,
     reason:
-      wind === undefined
-        ? "No measured wind speed at hub height has been supplied. Coastal UAE annual means are typically 3 to 4 m/s at 10 m, which is below the economic threshold for small turbines."
-        : wind < 5.5
-          ? `Measured mean wind of ${wind.toFixed(1)} m/s is below the roughly 5.5 m/s needed for a small turbine to pay back.`
-          : `Measured mean wind of ${wind.toFixed(1)} m/s could support a small turbine.`,
+      wind !== undefined
+        ? wind < SCREEN_THRESHOLDS.viableWindMs
+          ? `Measured mean wind of ${wind.toFixed(1)} m/s is below the roughly ${SCREEN_THRESHOLDS.viableWindMs} m/s needed for a small turbine to pay back.`
+          : `Measured mean wind of ${wind.toFixed(1)} m/s could support a small turbine.`
+        : modelled !== null
+          ? `No site mast data. Without one, ${modelled.detail} — ${
+              modelled.capacityFactor < SCREEN_THRESHOLDS.campaignWindCf
+                ? "below the range where small wind usually beats solar on cost"
+                : "worth a measurement campaign"
+            }.${nonSolarNote}`
+          : "No measured wind speed at hub height has been supplied, and no climate dataset covers this site. Coastal UAE annual means are typically 3 to 4 m/s at 10 m, which is below the economic threshold for small turbines.",
     unblockedBy:
-      wind === undefined
-        ? "Twelve months of mast or LiDAR data at hub height, plus turbulence, aviation and noise clearances."
+      windStatus === "needs-evidence"
+        ? "Twelve months of mast or LiDAR data at hub height, plus turbulence, aviation (GCAA) and noise clearances."
         : undefined,
-    provenance: MODEL_SOURCE,
+    provenance: modelled?.provenance ?? MODEL_SOURCE,
   });
 
   const biomass = evidence.contractedBiomassTpd ?? 0;
   results.push({
     id: "biomass",
     label: "Biomass",
-    status: biomass >= 1.5 ? "needs-evidence" : "not-viable",
+    status: biomass >= SCREEN_THRESHOLDS.biomassFeedstockTpd ? "needs-evidence" : "not-viable",
     reason:
-      biomass >= 1.5
+      biomass >= SCREEN_THRESHOLDS.biomassFeedstockTpd
         ? `${biomass.toFixed(1)} dry tonnes per day of contracted feedstock was declared.`
         : "No contracted feedstock was declared. A map cannot prove a fuel supply, and an uncontracted waste stream is not a resource.",
     unblockedBy:
-      biomass >= 1.5
+      biomass >= SCREEN_THRESHOLDS.biomassFeedstockTpd
         ? "Signed multi-year feedstock supply, storage and handling design, and an emissions permit path."
         : "A signed feedstock contract stating dry tonnes per day and moisture content.",
     provenance: MODEL_SOURCE,
@@ -419,13 +567,15 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   results.push({
     id: "hydro",
     label: "Micro hydro",
-    status: hydroKw >= 5 ? "needs-evidence" : "not-viable",
+    status: hydroKw >= SCREEN_THRESHOLDS.hydroPotentialKw ? "needs-evidence" : "not-viable",
     reason:
-      hydroKw >= 5
+      hydroKw >= SCREEN_THRESHOLDS.hydroPotentialKw
         ? `Declared flow and head give roughly ${Math.round(hydroKw)} kW of hydraulic potential.`
         : "No perennial watercourse with usable head has been declared. The UAE has no perennial rivers, so this is normally a no before any survey.",
     unblockedBy:
-      hydroKw >= 5 ? "A flow-duration curve, a surveyed head, and water abstraction rights." : undefined,
+      hydroKw >= SCREEN_THRESHOLDS.hydroPotentialKw
+        ? "A flow-duration curve, a surveyed head, and water abstraction rights."
+        : undefined,
     provenance: MODEL_SOURCE,
   });
 
@@ -434,13 +584,13 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   results.push({
     id: "tidal",
     label: "Tidal stream",
-    status: tidalKw >= 10 ? "needs-evidence" : "not-viable",
+    status: tidalKw >= SCREEN_THRESHOLDS.tidalPotentialKw ? "needs-evidence" : "not-viable",
     reason:
-      tidalKw >= 10
+      tidalKw >= SCREEN_THRESHOLDS.tidalPotentialKw
         ? `Declared current and swept area give roughly ${Math.round(tidalKw)} kW.`
         : "No measured tidal current has been declared. Gulf tidal streams are generally well under the roughly 2 m/s that tidal turbines need, and output falls with the cube of speed.",
     unblockedBy:
-      tidalKw >= 10
+      tidalKw >= SCREEN_THRESHOLDS.tidalPotentialKw
         ? "An ADCP current survey, bathymetry, a marine works permit and a cable landing route."
         : undefined,
     provenance: MODEL_SOURCE,
@@ -451,13 +601,13 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   results.push({
     id: "geothermal",
     label: "Geothermal",
-    status: geoIndex >= 0.45 ? "needs-evidence" : "not-viable",
+    status: geoIndex >= SCREEN_THRESHOLDS.geothermalIndex ? "needs-evidence" : "not-viable",
     reason:
-      geoIndex >= 0.45
+      geoIndex >= SCREEN_THRESHOLDS.geothermalIndex
         ? `Declared gradient and depth suggest a resource worth a feasibility study.`
         : "No measured gradient has been declared. Power generation needs a well above roughly 120 C; shallow UAE gradients suit heating and cooling, not electricity.",
     unblockedBy:
-      geoIndex >= 0.45
+      geoIndex >= SCREEN_THRESHOLDS.geothermalIndex
         ? "A gradient survey or nearby well logs, a drilling risk assessment and a reinjection plan."
         : undefined,
     provenance: MODEL_SOURCE,

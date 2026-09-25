@@ -1,10 +1,17 @@
 # Mizan — UAE renewable energy screening
 
 Pick a real building, say what the site uses, and find out what solar can go on
-it, what it saves, and which rule caps it.
+it, what it saves, and which rule caps it. Or click **+ Analyze your own site**,
+upload an electricity bill or site document (PDF, TXT, CSV, MD) or type the
+figures, review what Mizan read — each field tagged found / needs confirmation /
+not found with the page it came from — and confirm before anything is analysed.
+Nothing leaves the browser.
 
-Open **UAE energy mixes** for 12 UAE examples spanning solar only, solar + wind,
-wind only and hypothetical solar + micro-hydro. Toggle sources, reduce capacity,
+Open **UAE energy mixes** for 15 UAE examples spanning solar only, solar + wind,
+wind only and hypothetical solar + micro-hydro, each with a recommendation card
+(mix, legal status per emirate, options ruled out and why, evidence still
+needed). Wind rests on Global Wind Atlas + ERA5 at 27 UAE climate points and
+says so. Toggle sources, reduce capacity,
 adjust the assumed avoided tariff, and compare monthly generation, load coverage
 and simple payback. Every portfolio building also has an energy-mix section.
 Published project capacities and assumed resource/financial inputs are labelled
@@ -56,7 +63,7 @@ says which it is using in "What this rests on" rather than pretending.
 
 ```bash
 node serve.mjs   # run the app, nothing to install
-npm test         # 67 engine tests
+npm test         # 128 engine tests
 npm run validate # check the engine against PVGIS at 16 UAE coordinates
 npm run calibrate# refit the clearness index against PVGIS measurements
 npm run demo     # one site through the engine, printed to the terminal

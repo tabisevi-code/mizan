@@ -6,6 +6,7 @@ import { RENEWABLE_PORTFOLIOS } from "../src/data/renewable-portfolios.ts";
 import { PORTFOLIOS } from "../src/data/portfolios.ts";
 import { systemsForCase } from "../src/data/portfolios-uae-multi.ts";
 import { analyzeRenewableCombination } from "../src/engine/renewable-combinations.ts";
+import { windYield } from "../src/engine/wind.ts";
 
 test("all four supplied portfolios have unique reachable sites and complete resource inputs", () => {
   assert.deepEqual(RENEWABLE_PORTFOLIOS.filter(p => !["mapped-energy", "published-warehouses"].includes(p.id)).map(p => p.id), ["solar-only", "solar-wind", "wind-only", "solar-microhydro"]);
@@ -26,13 +27,16 @@ test("all four supplied portfolios have unique reachable sites and complete reso
   }
 });
 
-test("wind-only starts with wind and uses kWh / 1000 for MWh", () => {
+test("wind-only starts with wind and uses the modelled site climate", () => {
   const site = RENEWABLE_PORTFOLIOS.find(p => p.id === "wind-only")!.sites[0];
   assert.deepEqual(site.defaultSources, ["wind"]);
   assert.equal(site.solarKw, 0);
   const r = analyzeRenewableCombination(site.name, systemsForCase(site), site.annualKwh);
   assert.equal(r.bySource.length, 1);
-  assert.ok(Math.abs(r.annualResults.totalMwh - site.windKw! * 8760 * 0.2 / 1000) < 1e-8);
+  const expected = site.windKw! * windYield(site.windProfile!, site.windTurbine ?? "mid-900").annualKwhPerKw / 1000;
+  assert.ok(Math.abs(r.annualResults.totalMwh - expected) < 1e-8);
+  // A ridgeline scenario should model well above the flat 20% placeholder CF it replaced.
+  assert.ok(windYield(site.windProfile!, site.windTurbine ?? "mid-900").capacityFactor > 0.22);
 });
 
 test("seasonal portfolios generate through the water model and use distinct state IDs", () => {

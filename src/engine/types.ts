@@ -142,6 +142,13 @@ export type TechnologyId =
   | "geothermal"
   | "battery";
 
+/**
+ * Generation sources the monthly energy-mix path can combine. Narrower than
+ * TechnologyId: the monthly model only handles sources with a monthly yield
+ * profile, and biogas/tidal sit outside it today.
+ */
+export type RenewableSource = "solar" | "wind" | "hydro" | "geothermal";
+
 export type ScreenStatus =
   | "eligible" // physically and legally usable with what we know
   | "needs-evidence" // could work, but a named measurement is missing

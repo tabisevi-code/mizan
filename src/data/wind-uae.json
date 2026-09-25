@@ -1,0 +1,3483 @@
+{
+  "meta": {
+    "generatedBy": "scripts/fetch-wind.ts",
+    "retrieved": "2026-09-25",
+    "era5": {
+      "source": "ERA5 reanalysis via the Open-Meteo archive API",
+      "url": "https://open-meteo.com/en/docs/historical-weather-api",
+      "period": "2015-01-01 to 2024-12-31",
+      "heightM": 100,
+      "licence": "ERA5, Copernicus Climate Change Service; Open-Meteo CC BY 4.0",
+      "caveat": "Reanalysis on a roughly 31 km grid. It carries the seasonal cycle and the air density well, and understates wind over terrain it cannot resolve."
+    },
+    "gwa": {
+      "source": "Global Wind Atlas 3.0: gridded area means over a 2.5 km box (get_area_mean) for the wind level, and the generalized wind climate (WAsP .lib) for sector and shape detail",
+      "url": "https://globalwindatlas.info/",
+      "licence": "CC BY 4.0, DTU Wind Energy and the World Bank Group",
+      "caveat": "A model, not a met mast. It is not a substitute for on-site measurement before investment."
+    }
+  },
+  "sites": {
+    "abu-dhabi-city": {
+      "name": "Abu Dhabi city",
+      "emirate": "abu-dhabi",
+      "lat": 24.4539,
+      "lng": 54.3773,
+      "terrain": 0.4,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 6.169,
+            "weibullK": 2.093,
+            "meanMs": 5.464,
+            "meanTempC": 20.31,
+            "meanPressureHpa": 1017.2
+          },
+          {
+            "weibullA": 6.664,
+            "weibullK": 2.164,
+            "meanMs": 5.902,
+            "meanTempC": 20.97,
+            "meanPressureHpa": 1015.8
+          },
+          {
+            "weibullA": 6.689,
+            "weibullK": 2.157,
+            "meanMs": 5.924,
+            "meanTempC": 23.79,
+            "meanPressureHpa": 1012.5
+          },
+          {
+            "weibullA": 6.302,
+            "weibullK": 2.18,
+            "meanMs": 5.581,
+            "meanTempC": 27.45,
+            "meanPressureHpa": 1009.1
+          },
+          {
+            "weibullA": 6.405,
+            "weibullK": 2.182,
+            "meanMs": 5.672,
+            "meanTempC": 31.38,
+            "meanPressureHpa": 1004.9
+          },
+          {
+            "weibullA": 6.288,
+            "weibullK": 2.247,
+            "meanMs": 5.57,
+            "meanTempC": 33.87,
+            "meanPressureHpa": 998.7
+          },
+          {
+            "weibullA": 5.659,
+            "weibullK": 2.392,
+            "meanMs": 5.016,
+            "meanTempC": 35.5,
+            "meanPressureHpa": 995.8
+          },
+          {
+            "weibullA": 5.419,
+            "weibullK": 2.409,
+            "meanMs": 4.804,
+            "meanTempC": 35.47,
+            "meanPressureHpa": 997.9
+          },
+          {
+            "weibullA": 5.071,
+            "weibullK": 2.298,
+            "meanMs": 4.492,
+            "meanTempC": 33.61,
+            "meanPressureHpa": 1003.1
+          },
+          {
+            "weibullA": 5.081,
+            "weibullK": 2.438,
+            "meanMs": 4.506,
+            "meanTempC": 30.76,
+            "meanPressureHpa": 1009.8
+          },
+          {
+            "weibullA": 5.455,
+            "weibullK": 2.362,
+            "meanMs": 4.834,
+            "meanTempC": 26.78,
+            "meanPressureHpa": 1014.3
+          },
+          {
+            "weibullA": 5.405,
+            "weibullK": 2.234,
+            "meanMs": 4.787,
+            "meanTempC": 22.71,
+            "meanPressureHpa": 1017.1
+          }
+        ],
+        "annualMeanMs": 5.209
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.951,
+          4.137,
+          4.95,
+          5.57,
+          5.97
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.28,
+            "bestDecileMs": 3.34
+          },
+          "100": {
+            "meanMs": 4.18,
+            "bestDecileMs": 4.25
+          },
+          "150": {
+            "meanMs": 4.87,
+            "bestDecileMs": 4.95
+          }
+        }
+      },
+      "terrainFactor": 0.8025
+    },
+    "masdar-city": {
+      "name": "Masdar City",
+      "emirate": "abu-dhabi",
+      "lat": 24.4269,
+      "lng": 54.6167,
+      "terrain": 0.4,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.926,
+            "weibullK": 2.143,
+            "meanMs": 5.248,
+            "meanTempC": 19.45,
+            "meanPressureHpa": 1017.3
+          },
+          {
+            "weibullA": 6.333,
+            "weibullK": 2.138,
+            "meanMs": 5.609,
+            "meanTempC": 20.68,
+            "meanPressureHpa": 1015.8
+          },
+          {
+            "weibullA": 6.471,
+            "weibullK": 2.168,
+            "meanMs": 5.73,
+            "meanTempC": 23.79,
+            "meanPressureHpa": 1012.6
+          },
+          {
+            "weibullA": 6.075,
+            "weibullK": 2.253,
+            "meanMs": 5.381,
+            "meanTempC": 27.8,
+            "meanPressureHpa": 1009.2
+          },
+          {
+            "weibullA": 6.075,
+            "weibullK": 2.237,
+            "meanMs": 5.381,
+            "meanTempC": 31.82,
+            "meanPressureHpa": 1005.1
+          },
+          {
+            "weibullA": 5.975,
+            "weibullK": 2.204,
+            "meanMs": 5.292,
+            "meanTempC": 34.39,
+            "meanPressureHpa": 998.9
+          },
+          {
+            "weibullA": 5.638,
+            "weibullK": 2.338,
+            "meanMs": 4.996,
+            "meanTempC": 36.25,
+            "meanPressureHpa": 995.9
+          },
+          {
+            "weibullA": 5.399,
+            "weibullK": 2.354,
+            "meanMs": 4.784,
+            "meanTempC": 36.02,
+            "meanPressureHpa": 998.1
+          },
+          {
+            "weibullA": 5.193,
+            "weibullK": 2.277,
+            "meanMs": 4.6,
+            "meanTempC": 33.63,
+            "meanPressureHpa": 1003.3
+          },
+          {
+            "weibullA": 5.086,
+            "weibullK": 2.389,
+            "meanMs": 4.508,
+            "meanTempC": 30.17,
+            "meanPressureHpa": 1010
+          },
+          {
+            "weibullA": 5.278,
+            "weibullK": 2.329,
+            "meanMs": 4.677,
+            "meanTempC": 25.83,
+            "meanPressureHpa": 1014.4
+          },
+          {
+            "weibullA": 5.135,
+            "weibullK": 2.195,
+            "meanMs": 4.548,
+            "meanTempC": 21.59,
+            "meanPressureHpa": 1017.2
+          }
+        ],
+        "annualMeanMs": 5.06
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.234,
+          4.533,
+          5.423,
+          5.979,
+          6.307
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.4,
+            "bestDecileMs": 3.45
+          },
+          "100": {
+            "meanMs": 4.32,
+            "bestDecileMs": 4.4
+          },
+          "150": {
+            "meanMs": 4.84,
+            "bestDecileMs": 4.95
+          }
+        }
+      },
+      "terrainFactor": 0.8538
+    },
+    "al-ain": {
+      "name": "Al Ain",
+      "emirate": "abu-dhabi",
+      "lat": 24.2075,
+      "lng": 55.7447,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.548,
+            "weibullK": 2.094,
+            "meanMs": 4.914,
+            "meanTempC": 18.46,
+            "meanPressureHpa": 985.7
+          },
+          {
+            "weibullA": 5.736,
+            "weibullK": 2.186,
+            "meanMs": 5.08,
+            "meanTempC": 20.46,
+            "meanPressureHpa": 984.5
+          },
+          {
+            "weibullA": 6.057,
+            "weibullK": 2.084,
+            "meanMs": 5.365,
+            "meanTempC": 24.14,
+            "meanPressureHpa": 981.9
+          },
+          {
+            "weibullA": 5.837,
+            "weibullK": 2.226,
+            "meanMs": 5.17,
+            "meanTempC": 28.75,
+            "meanPressureHpa": 979.2
+          },
+          {
+            "weibullA": 5.834,
+            "weibullK": 2.108,
+            "meanMs": 5.167,
+            "meanTempC": 32.99,
+            "meanPressureHpa": 975.8
+          },
+          {
+            "weibullA": 5.774,
+            "weibullK": 2.14,
+            "meanMs": 5.113,
+            "meanTempC": 36.08,
+            "meanPressureHpa": 970.1
+          },
+          {
+            "weibullA": 5.794,
+            "weibullK": 2.195,
+            "meanMs": 5.131,
+            "meanTempC": 37.15,
+            "meanPressureHpa": 967.6
+          },
+          {
+            "weibullA": 5.741,
+            "weibullK": 2.173,
+            "meanMs": 5.084,
+            "meanTempC": 36.9,
+            "meanPressureHpa": 969.6
+          },
+          {
+            "weibullA": 5.689,
+            "weibullK": 2.383,
+            "meanMs": 5.043,
+            "meanTempC": 34.3,
+            "meanPressureHpa": 974.3
+          },
+          {
+            "weibullA": 5.459,
+            "weibullK": 2.229,
+            "meanMs": 4.834,
+            "meanTempC": 30.07,
+            "meanPressureHpa": 980.2
+          },
+          {
+            "weibullA": 5.386,
+            "weibullK": 2.195,
+            "meanMs": 4.77,
+            "meanTempC": 24.9,
+            "meanPressureHpa": 983.9
+          },
+          {
+            "weibullA": 5.185,
+            "weibullK": 2.264,
+            "meanMs": 4.592,
+            "meanTempC": 20.62,
+            "meanPressureHpa": 985.8
+          }
+        ],
+        "annualMeanMs": 5.022
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.179,
+          4.457,
+          5.334,
+          5.983,
+          6.439
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.29,
+            "bestDecileMs": 3.34
+          },
+          "100": {
+            "meanMs": 4.18,
+            "bestDecileMs": 4.21
+          },
+          "150": {
+            "meanMs": 4.82,
+            "bestDecileMs": 4.84
+          }
+        }
+      },
+      "terrainFactor": 0.8323
+    },
+    "ruwais": {
+      "name": "Ruwais industrial city",
+      "emirate": "abu-dhabi",
+      "lat": 24.1112,
+      "lng": 52.7304,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 6.42,
+            "weibullK": 2.301,
+            "meanMs": 5.687,
+            "meanTempC": 18.9,
+            "meanPressureHpa": 1017
+          },
+          {
+            "weibullA": 7.085,
+            "weibullK": 2.453,
+            "meanMs": 6.284,
+            "meanTempC": 19.9,
+            "meanPressureHpa": 1015.4
+          },
+          {
+            "weibullA": 6.952,
+            "weibullK": 2.337,
+            "meanMs": 6.161,
+            "meanTempC": 23.21,
+            "meanPressureHpa": 1012
+          },
+          {
+            "weibullA": 6.591,
+            "weibullK": 2.376,
+            "meanMs": 5.842,
+            "meanTempC": 27.21,
+            "meanPressureHpa": 1008.8
+          },
+          {
+            "weibullA": 6.481,
+            "weibullK": 2.286,
+            "meanMs": 5.741,
+            "meanTempC": 31.53,
+            "meanPressureHpa": 1004.7
+          },
+          {
+            "weibullA": 6.578,
+            "weibullK": 2.258,
+            "meanMs": 5.826,
+            "meanTempC": 33.91,
+            "meanPressureHpa": 998.7
+          },
+          {
+            "weibullA": 5.823,
+            "weibullK": 2.379,
+            "meanMs": 5.161,
+            "meanTempC": 35.61,
+            "meanPressureHpa": 995.4
+          },
+          {
+            "weibullA": 5.451,
+            "weibullK": 2.492,
+            "meanMs": 4.837,
+            "meanTempC": 35.34,
+            "meanPressureHpa": 997.5
+          },
+          {
+            "weibullA": 4.955,
+            "weibullK": 2.371,
+            "meanMs": 4.391,
+            "meanTempC": 33.22,
+            "meanPressureHpa": 1002.7
+          },
+          {
+            "weibullA": 5.233,
+            "weibullK": 2.547,
+            "meanMs": 4.646,
+            "meanTempC": 30.03,
+            "meanPressureHpa": 1009.5
+          },
+          {
+            "weibullA": 5.68,
+            "weibullK": 2.505,
+            "meanMs": 5.04,
+            "meanTempC": 25.66,
+            "meanPressureHpa": 1014
+          },
+          {
+            "weibullA": 5.745,
+            "weibullK": 2.365,
+            "meanMs": 5.092,
+            "meanTempC": 21.05,
+            "meanPressureHpa": 1017
+          }
+        ],
+        "annualMeanMs": 5.387
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.269,
+          4.585,
+          5.486,
+          6.041,
+          6.39
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 4.78,
+            "bestDecileMs": 5.05
+          },
+          "100": {
+            "meanMs": 5.84,
+            "bestDecileMs": 5.96
+          },
+          "150": {
+            "meanMs": 6.41,
+            "bestDecileMs": 6.55
+          }
+        }
+      },
+      "terrainFactor": 1.0841
+    },
+    "madinat-zayed": {
+      "name": "Madinat Zayed",
+      "emirate": "abu-dhabi",
+      "lat": 23.6532,
+      "lng": 53.7061,
+      "terrain": 0.03,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 6.461,
+            "weibullK": 2.491,
+            "meanMs": 5.732,
+            "meanTempC": 18.12,
+            "meanPressureHpa": 1004.1
+          },
+          {
+            "weibullA": 7.077,
+            "weibullK": 2.545,
+            "meanMs": 6.282,
+            "meanTempC": 19.71,
+            "meanPressureHpa": 1002.6
+          },
+          {
+            "weibullA": 7.047,
+            "weibullK": 2.417,
+            "meanMs": 6.248,
+            "meanTempC": 23.52,
+            "meanPressureHpa": 999.5
+          },
+          {
+            "weibullA": 6.743,
+            "weibullK": 2.495,
+            "meanMs": 5.983,
+            "meanTempC": 28.04,
+            "meanPressureHpa": 996.5
+          },
+          {
+            "weibullA": 6.916,
+            "weibullK": 2.391,
+            "meanMs": 6.131,
+            "meanTempC": 32.4,
+            "meanPressureHpa": 992.7
+          },
+          {
+            "weibullA": 6.959,
+            "weibullK": 2.369,
+            "meanMs": 6.168,
+            "meanTempC": 34.74,
+            "meanPressureHpa": 986.8
+          },
+          {
+            "weibullA": 6.108,
+            "weibullK": 2.36,
+            "meanMs": 5.413,
+            "meanTempC": 36.6,
+            "meanPressureHpa": 983.8
+          },
+          {
+            "weibullA": 5.656,
+            "weibullK": 2.335,
+            "meanMs": 5.012,
+            "meanTempC": 36.11,
+            "meanPressureHpa": 985.8
+          },
+          {
+            "weibullA": 5.281,
+            "weibullK": 2.285,
+            "meanMs": 4.678,
+            "meanTempC": 33.44,
+            "meanPressureHpa": 990.9
+          },
+          {
+            "weibullA": 5.535,
+            "weibullK": 2.639,
+            "meanMs": 4.918,
+            "meanTempC": 29.51,
+            "meanPressureHpa": 997.4
+          },
+          {
+            "weibullA": 5.747,
+            "weibullK": 2.674,
+            "meanMs": 5.109,
+            "meanTempC": 24.81,
+            "meanPressureHpa": 1001.5
+          },
+          {
+            "weibullA": 5.883,
+            "weibullK": 2.664,
+            "meanMs": 5.229,
+            "meanTempC": 20.21,
+            "meanPressureHpa": 1004.1
+          }
+        ],
+        "annualMeanMs": 5.571
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.536,
+          4.957,
+          5.932,
+          6.714,
+          7.152
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 5.16,
+            "bestDecileMs": 5.28
+          },
+          "100": {
+            "meanMs": 6.29,
+            "bestDecileMs": 6.37
+          },
+          "150": {
+            "meanMs": 7.16,
+            "bestDecileMs": 7.24
+          }
+        }
+      },
+      "terrainFactor": 1.1291
+    },
+    "liwa": {
+      "name": "Liwa oasis",
+      "emirate": "abu-dhabi",
+      "lat": 23.1332,
+      "lng": 53.7842,
+      "terrain": 0.03,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 6.535,
+            "weibullK": 2.61,
+            "meanMs": 5.805,
+            "meanTempC": 18.25,
+            "meanPressureHpa": 1006
+          },
+          {
+            "weibullA": 7.187,
+            "weibullK": 2.77,
+            "meanMs": 6.397,
+            "meanTempC": 20.16,
+            "meanPressureHpa": 1004.5
+          },
+          {
+            "weibullA": 7.27,
+            "weibullK": 2.608,
+            "meanMs": 6.458,
+            "meanTempC": 24.35,
+            "meanPressureHpa": 1001.3
+          },
+          {
+            "weibullA": 6.949,
+            "weibullK": 2.544,
+            "meanMs": 6.169,
+            "meanTempC": 29.1,
+            "meanPressureHpa": 998.4
+          },
+          {
+            "weibullA": 7.13,
+            "weibullK": 2.452,
+            "meanMs": 6.324,
+            "meanTempC": 33.55,
+            "meanPressureHpa": 994.6
+          },
+          {
+            "weibullA": 7.215,
+            "weibullK": 2.409,
+            "meanMs": 6.397,
+            "meanTempC": 36.04,
+            "meanPressureHpa": 988.7
+          },
+          {
+            "weibullA": 6.266,
+            "weibullK": 2.412,
+            "meanMs": 5.555,
+            "meanTempC": 37.59,
+            "meanPressureHpa": 985.7
+          },
+          {
+            "weibullA": 5.845,
+            "weibullK": 2.416,
+            "meanMs": 5.183,
+            "meanTempC": 37.29,
+            "meanPressureHpa": 987.7
+          },
+          {
+            "weibullA": 5.537,
+            "weibullK": 2.329,
+            "meanMs": 4.906,
+            "meanTempC": 34.36,
+            "meanPressureHpa": 992.8
+          },
+          {
+            "weibullA": 5.964,
+            "weibullK": 2.52,
+            "meanMs": 5.293,
+            "meanTempC": 30.08,
+            "meanPressureHpa": 999.2
+          },
+          {
+            "weibullA": 6.053,
+            "weibullK": 2.805,
+            "meanMs": 5.39,
+            "meanTempC": 24.98,
+            "meanPressureHpa": 1003.5
+          },
+          {
+            "weibullA": 6.23,
+            "weibullK": 2.801,
+            "meanMs": 5.548,
+            "meanTempC": 20.34,
+            "meanPressureHpa": 1006.1
+          }
+        ],
+        "annualMeanMs": 5.781
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.568,
+          5.002,
+          5.985,
+          6.758,
+          7.228
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 4.96,
+            "bestDecileMs": 5.92
+          },
+          "100": {
+            "meanMs": 6.1,
+            "bestDecileMs": 6.97
+          },
+          "150": {
+            "meanMs": 6.97,
+            "bestDecileMs": 7.73
+          }
+        }
+      },
+      "terrainFactor": 1.0552
+    },
+    "sir-bani-yas": {
+      "name": "Sir Bani Yas island",
+      "emirate": "abu-dhabi",
+      "lat": 24.3153,
+      "lng": 52.5831,
+      "terrain": 0.03,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 6.754,
+            "weibullK": 2.095,
+            "meanMs": 5.982,
+            "meanTempC": 19.52,
+            "meanPressureHpa": 1011.1
+          },
+          {
+            "weibullA": 7.529,
+            "weibullK": 2.318,
+            "meanMs": 6.67,
+            "meanTempC": 19.39,
+            "meanPressureHpa": 1009.5
+          },
+          {
+            "weibullA": 7.301,
+            "weibullK": 2.161,
+            "meanMs": 6.466,
+            "meanTempC": 21.77,
+            "meanPressureHpa": 1006.2
+          },
+          {
+            "weibullA": 6.929,
+            "weibullK": 2.153,
+            "meanMs": 6.136,
+            "meanTempC": 25.03,
+            "meanPressureHpa": 1003
+          },
+          {
+            "weibullA": 6.959,
+            "weibullK": 2.016,
+            "meanMs": 6.167,
+            "meanTempC": 29.07,
+            "meanPressureHpa": 999.1
+          },
+          {
+            "weibullA": 7.035,
+            "weibullK": 2.054,
+            "meanMs": 6.232,
+            "meanTempC": 31.99,
+            "meanPressureHpa": 993.1
+          },
+          {
+            "weibullA": 5.792,
+            "weibullK": 2.179,
+            "meanMs": 5.129,
+            "meanTempC": 33.71,
+            "meanPressureHpa": 989.9
+          },
+          {
+            "weibullA": 5.271,
+            "weibullK": 2.41,
+            "meanMs": 4.673,
+            "meanTempC": 34.15,
+            "meanPressureHpa": 992
+          },
+          {
+            "weibullA": 4.731,
+            "weibullK": 2.194,
+            "meanMs": 4.19,
+            "meanTempC": 32.99,
+            "meanPressureHpa": 997.2
+          },
+          {
+            "weibullA": 5.186,
+            "weibullK": 2.215,
+            "meanMs": 4.593,
+            "meanTempC": 30.55,
+            "meanPressureHpa": 1003.9
+          },
+          {
+            "weibullA": 5.92,
+            "weibullK": 2.266,
+            "meanMs": 5.244,
+            "meanTempC": 26.5,
+            "meanPressureHpa": 1008.3
+          },
+          {
+            "weibullA": 6.091,
+            "weibullK": 2.143,
+            "meanMs": 5.394,
+            "meanTempC": 22.14,
+            "meanPressureHpa": 1011.1
+          }
+        ],
+        "annualMeanMs": 5.566
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.192,
+          4.473,
+          5.351,
+          5.896,
+          6.273
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 4.8,
+            "bestDecileMs": 5.13
+          },
+          "100": {
+            "meanMs": 5.73,
+            "bestDecileMs": 6.02
+          },
+          "150": {
+            "meanMs": 6.24,
+            "bestDecileMs": 6.52
+          }
+        }
+      },
+      "terrainFactor": 1.0295
+    },
+    "delma": {
+      "name": "Delma island",
+      "emirate": "abu-dhabi",
+      "lat": 24.5053,
+      "lng": 52.3022,
+      "terrain": 0.03,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 6.885,
+            "weibullK": 2.057,
+            "meanMs": 6.099,
+            "meanTempC": 19.55,
+            "meanPressureHpa": 1012.7
+          },
+          {
+            "weibullA": 7.643,
+            "weibullK": 2.232,
+            "meanMs": 6.769,
+            "meanTempC": 19.33,
+            "meanPressureHpa": 1011.1
+          },
+          {
+            "weibullA": 7.411,
+            "weibullK": 2.097,
+            "meanMs": 6.564,
+            "meanTempC": 21.57,
+            "meanPressureHpa": 1007.7
+          },
+          {
+            "weibullA": 7.013,
+            "weibullK": 2.071,
+            "meanMs": 6.212,
+            "meanTempC": 24.76,
+            "meanPressureHpa": 1004.6
+          },
+          {
+            "weibullA": 7.056,
+            "weibullK": 1.908,
+            "meanMs": 6.26,
+            "meanTempC": 28.81,
+            "meanPressureHpa": 1000.6
+          },
+          {
+            "weibullA": 7.255,
+            "weibullK": 1.963,
+            "meanMs": 6.432,
+            "meanTempC": 31.95,
+            "meanPressureHpa": 994.6
+          },
+          {
+            "weibullA": 5.743,
+            "weibullK": 2.003,
+            "meanMs": 5.089,
+            "meanTempC": 33.61,
+            "meanPressureHpa": 991.3
+          },
+          {
+            "weibullA": 5.123,
+            "weibullK": 2.143,
+            "meanMs": 4.537,
+            "meanTempC": 34.21,
+            "meanPressureHpa": 993.5
+          },
+          {
+            "weibullA": 4.573,
+            "weibullK": 1.965,
+            "meanMs": 4.054,
+            "meanTempC": 33.18,
+            "meanPressureHpa": 998.6
+          },
+          {
+            "weibullA": 5.106,
+            "weibullK": 1.994,
+            "meanMs": 4.525,
+            "meanTempC": 30.78,
+            "meanPressureHpa": 1005.4
+          },
+          {
+            "weibullA": 5.971,
+            "weibullK": 2.135,
+            "meanMs": 5.288,
+            "meanTempC": 26.64,
+            "meanPressureHpa": 1009.8
+          },
+          {
+            "weibullA": 6.266,
+            "weibullK": 2.069,
+            "meanMs": 5.55,
+            "meanTempC": 22.15,
+            "meanPressureHpa": 1012.7
+          }
+        ],
+        "annualMeanMs": 5.608
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.151,
+          4.415,
+          5.284,
+          5.821,
+          6.195
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 5.12,
+            "bestDecileMs": 5.31
+          },
+          "100": {
+            "meanMs": 5.9,
+            "bestDecileMs": 6.03
+          },
+          "150": {
+            "meanMs": 6.25,
+            "bestDecileMs": 6.36
+          }
+        }
+      },
+      "terrainFactor": 1.0521
+    },
+    "sila": {
+      "name": "Al Sila",
+      "emirate": "abu-dhabi",
+      "lat": 24.0494,
+      "lng": 51.6017,
+      "terrain": 0.03,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 6.675,
+            "weibullK": 2.442,
+            "meanMs": 5.919,
+            "meanTempC": 17.59,
+            "meanPressureHpa": 1012.6
+          },
+          {
+            "weibullA": 7.343,
+            "weibullK": 2.545,
+            "meanMs": 6.518,
+            "meanTempC": 19.14,
+            "meanPressureHpa": 1010.9
+          },
+          {
+            "weibullA": 7.278,
+            "weibullK": 2.519,
+            "meanMs": 6.459,
+            "meanTempC": 23.11,
+            "meanPressureHpa": 1007.4
+          },
+          {
+            "weibullA": 6.957,
+            "weibullK": 2.495,
+            "meanMs": 6.172,
+            "meanTempC": 27.63,
+            "meanPressureHpa": 1004.3
+          },
+          {
+            "weibullA": 6.782,
+            "weibullK": 2.34,
+            "meanMs": 6.01,
+            "meanTempC": 32.5,
+            "meanPressureHpa": 1000.4
+          },
+          {
+            "weibullA": 7.034,
+            "weibullK": 2.36,
+            "meanMs": 6.234,
+            "meanTempC": 35.24,
+            "meanPressureHpa": 994.6
+          },
+          {
+            "weibullA": 6.159,
+            "weibullK": 2.622,
+            "meanMs": 5.472,
+            "meanTempC": 36.54,
+            "meanPressureHpa": 991.2
+          },
+          {
+            "weibullA": 5.677,
+            "weibullK": 2.595,
+            "meanMs": 5.042,
+            "meanTempC": 36.07,
+            "meanPressureHpa": 993.3
+          },
+          {
+            "weibullA": 5.187,
+            "weibullK": 2.529,
+            "meanMs": 4.604,
+            "meanTempC": 33.5,
+            "meanPressureHpa": 998.4
+          },
+          {
+            "weibullA": 5.379,
+            "weibullK": 2.537,
+            "meanMs": 4.774,
+            "meanTempC": 29.73,
+            "meanPressureHpa": 1005.2
+          },
+          {
+            "weibullA": 5.931,
+            "weibullK": 2.589,
+            "meanMs": 5.267,
+            "meanTempC": 24.75,
+            "meanPressureHpa": 1009.7
+          },
+          {
+            "weibullA": 6.148,
+            "weibullK": 2.433,
+            "meanMs": 5.451,
+            "meanTempC": 19.45,
+            "meanPressureHpa": 1012.7
+          }
+        ],
+        "annualMeanMs": 5.655
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.688,
+          5.17,
+          6.187,
+          6.931,
+          7.421
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 5.73,
+            "bestDecileMs": 5.77
+          },
+          "100": {
+            "meanMs": 6.85,
+            "bestDecileMs": 6.89
+          },
+          "150": {
+            "meanMs": 7.7,
+            "bestDecileMs": 7.73
+          }
+        }
+      },
+      "terrainFactor": 1.2113
+    },
+    "jebel-ali": {
+      "name": "Jebel Ali free zone",
+      "emirate": "dubai",
+      "lat": 24.9857,
+      "lng": 55.0879,
+      "terrain": 0.4,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.544,
+            "weibullK": 1.954,
+            "meanMs": 4.916,
+            "meanTempC": 19.29,
+            "meanPressureHpa": 1016.7
+          },
+          {
+            "weibullA": 5.877,
+            "weibullK": 1.898,
+            "meanMs": 5.216,
+            "meanTempC": 20.4,
+            "meanPressureHpa": 1015.3
+          },
+          {
+            "weibullA": 6.091,
+            "weibullK": 1.999,
+            "meanMs": 5.398,
+            "meanTempC": 23.21,
+            "meanPressureHpa": 1012.1
+          },
+          {
+            "weibullA": 5.769,
+            "weibullK": 2.161,
+            "meanMs": 5.109,
+            "meanTempC": 27,
+            "meanPressureHpa": 1008.7
+          },
+          {
+            "weibullA": 5.87,
+            "weibullK": 2.189,
+            "meanMs": 5.199,
+            "meanTempC": 30.97,
+            "meanPressureHpa": 1004.4
+          },
+          {
+            "weibullA": 5.758,
+            "weibullK": 2.222,
+            "meanMs": 5.1,
+            "meanTempC": 33.82,
+            "meanPressureHpa": 998.2
+          },
+          {
+            "weibullA": 5.649,
+            "weibullK": 2.363,
+            "meanMs": 5.007,
+            "meanTempC": 35.6,
+            "meanPressureHpa": 995.4
+          },
+          {
+            "weibullA": 5.346,
+            "weibullK": 2.339,
+            "meanMs": 4.738,
+            "meanTempC": 35.37,
+            "meanPressureHpa": 997.7
+          },
+          {
+            "weibullA": 4.955,
+            "weibullK": 2.131,
+            "meanMs": 4.389,
+            "meanTempC": 33.08,
+            "meanPressureHpa": 1002.9
+          },
+          {
+            "weibullA": 4.666,
+            "weibullK": 2.16,
+            "meanMs": 4.132,
+            "meanTempC": 29.82,
+            "meanPressureHpa": 1009.5
+          },
+          {
+            "weibullA": 5.119,
+            "weibullK": 2.218,
+            "meanMs": 4.534,
+            "meanTempC": 25.65,
+            "meanPressureHpa": 1013.9
+          },
+          {
+            "weibullA": 4.831,
+            "weibullK": 2.052,
+            "meanMs": 4.279,
+            "meanTempC": 21.48,
+            "meanPressureHpa": 1016.6
+          }
+        ],
+        "annualMeanMs": 4.832
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.977,
+          4.174,
+          4.996,
+          5.452,
+          5.776
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.83,
+            "bestDecileMs": 3.94
+          },
+          "100": {
+            "meanMs": 4.89,
+            "bestDecileMs": 4.97
+          },
+          "150": {
+            "meanMs": 5.4,
+            "bestDecileMs": 5.43
+          }
+        }
+      },
+      "terrainFactor": 1.012
+    },
+    "dubai-industrial-city": {
+      "name": "Dubai Industrial City",
+      "emirate": "dubai",
+      "lat": 24.9053,
+      "lng": 55.1547,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.471,
+            "weibullK": 1.983,
+            "meanMs": 4.85,
+            "meanTempC": 18.9,
+            "meanPressureHpa": 1013.6
+          },
+          {
+            "weibullA": 5.819,
+            "weibullK": 1.919,
+            "meanMs": 5.162,
+            "meanTempC": 20.25,
+            "meanPressureHpa": 1012.2
+          },
+          {
+            "weibullA": 6.021,
+            "weibullK": 2.003,
+            "meanMs": 5.336,
+            "meanTempC": 23.29,
+            "meanPressureHpa": 1009.1
+          },
+          {
+            "weibullA": 5.719,
+            "weibullK": 2.158,
+            "meanMs": 5.065,
+            "meanTempC": 27.38,
+            "meanPressureHpa": 1005.7
+          },
+          {
+            "weibullA": 5.808,
+            "weibullK": 2.194,
+            "meanMs": 5.144,
+            "meanTempC": 31.49,
+            "meanPressureHpa": 1001.6
+          },
+          {
+            "weibullA": 5.709,
+            "weibullK": 2.186,
+            "meanMs": 5.056,
+            "meanTempC": 34.38,
+            "meanPressureHpa": 995.4
+          },
+          {
+            "weibullA": 5.626,
+            "weibullK": 2.314,
+            "meanMs": 4.985,
+            "meanTempC": 36.17,
+            "meanPressureHpa": 992.7
+          },
+          {
+            "weibullA": 5.302,
+            "weibullK": 2.299,
+            "meanMs": 4.697,
+            "meanTempC": 35.87,
+            "meanPressureHpa": 994.9
+          },
+          {
+            "weibullA": 4.952,
+            "weibullK": 2.11,
+            "meanMs": 4.385,
+            "meanTempC": 33.3,
+            "meanPressureHpa": 1000
+          },
+          {
+            "weibullA": 4.649,
+            "weibullK": 2.14,
+            "meanMs": 4.117,
+            "meanTempC": 29.73,
+            "meanPressureHpa": 1006.6
+          },
+          {
+            "weibullA": 5.05,
+            "weibullK": 2.196,
+            "meanMs": 4.472,
+            "meanTempC": 25.31,
+            "meanPressureHpa": 1011
+          },
+          {
+            "weibullA": 4.785,
+            "weibullK": 2.053,
+            "meanMs": 4.239,
+            "meanTempC": 21.03,
+            "meanPressureHpa": 1013.6
+          }
+        ],
+        "annualMeanMs": 4.79
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.974,
+          4.17,
+          4.99,
+          5.519,
+          5.939
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 4.53,
+            "bestDecileMs": 4.62
+          },
+          "100": {
+            "meanMs": 5.38,
+            "bestDecileMs": 5.45
+          },
+          "150": {
+            "meanMs": 5.94,
+            "bestDecileMs": 5.99
+          }
+        }
+      },
+      "terrainFactor": 1.1232
+    },
+    "al-khawaneej": {
+      "name": "Al Khawaneej",
+      "emirate": "dubai",
+      "lat": 25.217,
+      "lng": 55.5291,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.336,
+            "weibullK": 1.931,
+            "meanMs": 4.733,
+            "meanTempC": 19.1,
+            "meanPressureHpa": 1010.1
+          },
+          {
+            "weibullA": 5.653,
+            "weibullK": 1.864,
+            "meanMs": 5.019,
+            "meanTempC": 20.45,
+            "meanPressureHpa": 1008.7
+          },
+          {
+            "weibullA": 5.927,
+            "weibullK": 1.97,
+            "meanMs": 5.254,
+            "meanTempC": 23.41,
+            "meanPressureHpa": 1005.7
+          },
+          {
+            "weibullA": 5.586,
+            "weibullK": 2.152,
+            "meanMs": 4.947,
+            "meanTempC": 27.53,
+            "meanPressureHpa": 1002.4
+          },
+          {
+            "weibullA": 5.676,
+            "weibullK": 2.146,
+            "meanMs": 5.027,
+            "meanTempC": 31.65,
+            "meanPressureHpa": 998.2
+          },
+          {
+            "weibullA": 5.679,
+            "weibullK": 2.155,
+            "meanMs": 5.03,
+            "meanTempC": 34.67,
+            "meanPressureHpa": 992.2
+          },
+          {
+            "weibullA": 5.736,
+            "weibullK": 2.311,
+            "meanMs": 5.082,
+            "meanTempC": 36.23,
+            "meanPressureHpa": 989.5
+          },
+          {
+            "weibullA": 5.338,
+            "weibullK": 2.151,
+            "meanMs": 4.727,
+            "meanTempC": 35.94,
+            "meanPressureHpa": 991.7
+          },
+          {
+            "weibullA": 4.767,
+            "weibullK": 1.99,
+            "meanMs": 4.225,
+            "meanTempC": 33.4,
+            "meanPressureHpa": 996.8
+          },
+          {
+            "weibullA": 4.383,
+            "weibullK": 1.961,
+            "meanMs": 3.886,
+            "meanTempC": 29.88,
+            "meanPressureHpa": 1003.4
+          },
+          {
+            "weibullA": 4.863,
+            "weibullK": 2.106,
+            "meanMs": 4.307,
+            "meanTempC": 25.43,
+            "meanPressureHpa": 1007.6
+          },
+          {
+            "weibullA": 4.633,
+            "weibullK": 1.973,
+            "meanMs": 4.107,
+            "meanTempC": 21.24,
+            "meanPressureHpa": 1010.1
+          }
+        ],
+        "annualMeanMs": 4.694
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.835,
+          3.974,
+          4.754,
+          5.203,
+          5.625
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 4.11,
+            "bestDecileMs": 4.25
+          },
+          "100": {
+            "meanMs": 4.94,
+            "bestDecileMs": 5.06
+          },
+          "150": {
+            "meanMs": 5.41,
+            "bestDecileMs": 5.51
+          }
+        }
+      },
+      "terrainFactor": 1.0524
+    },
+    "business-bay": {
+      "name": "Business Bay",
+      "emirate": "dubai",
+      "lat": 25.1853,
+      "lng": 55.2683,
+      "terrain": 0.4,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.525,
+            "weibullK": 1.905,
+            "meanMs": 4.903,
+            "meanTempC": 19.64,
+            "meanPressureHpa": 1017.4
+          },
+          {
+            "weibullA": 5.864,
+            "weibullK": 1.855,
+            "meanMs": 5.208,
+            "meanTempC": 20.63,
+            "meanPressureHpa": 1016
+          },
+          {
+            "weibullA": 6.057,
+            "weibullK": 1.983,
+            "meanMs": 5.369,
+            "meanTempC": 23.28,
+            "meanPressureHpa": 1012.8
+          },
+          {
+            "weibullA": 5.732,
+            "weibullK": 2.16,
+            "meanMs": 5.076,
+            "meanTempC": 26.93,
+            "meanPressureHpa": 1009.3
+          },
+          {
+            "weibullA": 5.869,
+            "weibullK": 2.17,
+            "meanMs": 5.197,
+            "meanTempC": 30.79,
+            "meanPressureHpa": 1005.1
+          },
+          {
+            "weibullA": 5.707,
+            "weibullK": 2.236,
+            "meanMs": 5.054,
+            "meanTempC": 33.7,
+            "meanPressureHpa": 998.9
+          },
+          {
+            "weibullA": 5.691,
+            "weibullK": 2.41,
+            "meanMs": 5.045,
+            "meanTempC": 35.47,
+            "meanPressureHpa": 996.1
+          },
+          {
+            "weibullA": 5.376,
+            "weibullK": 2.294,
+            "meanMs": 4.762,
+            "meanTempC": 35.28,
+            "meanPressureHpa": 998.4
+          },
+          {
+            "weibullA": 4.85,
+            "weibullK": 2.136,
+            "meanMs": 4.295,
+            "meanTempC": 33.03,
+            "meanPressureHpa": 1003.6
+          },
+          {
+            "weibullA": 4.553,
+            "weibullK": 2.095,
+            "meanMs": 4.033,
+            "meanTempC": 29.95,
+            "meanPressureHpa": 1010.2
+          },
+          {
+            "weibullA": 5.081,
+            "weibullK": 2.188,
+            "meanMs": 4.5,
+            "meanTempC": 25.91,
+            "meanPressureHpa": 1014.6
+          },
+          {
+            "weibullA": 4.81,
+            "weibullK": 2.008,
+            "meanMs": 4.263,
+            "meanTempC": 21.91,
+            "meanPressureHpa": 1017.3
+          }
+        ],
+        "annualMeanMs": 4.807
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.761,
+          3.869,
+          4.629,
+          5.114,
+          5.55
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.63,
+            "bestDecileMs": 3.78
+          },
+          "100": {
+            "meanMs": 4.53,
+            "bestDecileMs": 4.6
+          },
+          "150": {
+            "meanMs": 5.04,
+            "bestDecileMs": 5.11
+          }
+        }
+      },
+      "terrainFactor": 0.9424
+    },
+    "hatta": {
+      "name": "Hatta",
+      "emirate": "dubai",
+      "lat": 24.799,
+      "lng": 56.118,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.819,
+            "weibullK": 1.896,
+            "meanMs": 5.164,
+            "meanTempC": 18.68,
+            "meanPressureHpa": 975.3
+          },
+          {
+            "weibullA": 5.761,
+            "weibullK": 1.752,
+            "meanMs": 5.13,
+            "meanTempC": 20.28,
+            "meanPressureHpa": 974.2
+          },
+          {
+            "weibullA": 6.13,
+            "weibullK": 1.948,
+            "meanMs": 5.436,
+            "meanTempC": 23.67,
+            "meanPressureHpa": 971.9
+          },
+          {
+            "weibullA": 6.192,
+            "weibullK": 2.091,
+            "meanMs": 5.485,
+            "meanTempC": 28.83,
+            "meanPressureHpa": 969.6
+          },
+          {
+            "weibullA": 6.462,
+            "weibullK": 2.142,
+            "meanMs": 5.723,
+            "meanTempC": 33.36,
+            "meanPressureHpa": 966.4
+          },
+          {
+            "weibullA": 6.174,
+            "weibullK": 2.165,
+            "meanMs": 5.468,
+            "meanTempC": 35.78,
+            "meanPressureHpa": 961.2
+          },
+          {
+            "weibullA": 5.532,
+            "weibullK": 2.181,
+            "meanMs": 4.899,
+            "meanTempC": 35.57,
+            "meanPressureHpa": 958.9
+          },
+          {
+            "weibullA": 5.088,
+            "weibullK": 2.263,
+            "meanMs": 4.507,
+            "meanTempC": 35.05,
+            "meanPressureHpa": 961
+          },
+          {
+            "weibullA": 4.568,
+            "weibullK": 2.045,
+            "meanMs": 4.047,
+            "meanTempC": 33.24,
+            "meanPressureHpa": 965.4
+          },
+          {
+            "weibullA": 4.487,
+            "weibullK": 2.08,
+            "meanMs": 3.975,
+            "meanTempC": 29.51,
+            "meanPressureHpa": 971
+          },
+          {
+            "weibullA": 5.037,
+            "weibullK": 2.16,
+            "meanMs": 4.461,
+            "meanTempC": 24.39,
+            "meanPressureHpa": 974.2
+          },
+          {
+            "weibullA": 5.009,
+            "weibullK": 2,
+            "meanMs": 4.44,
+            "meanTempC": 20.52,
+            "meanPressureHpa": 975.8
+          }
+        ],
+        "annualMeanMs": 4.893
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.386,
+          4.711,
+          5.605,
+          6.187,
+          6.75
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 4.37,
+            "bestDecileMs": 4.93
+          },
+          "100": {
+            "meanMs": 5.33,
+            "bestDecileMs": 5.76
+          },
+          "150": {
+            "meanMs": 5.95,
+            "bestDecileMs": 6.29
+          }
+        }
+      },
+      "terrainFactor": 1.0893,
+      "siting": "ridge"
+    },
+    "sharjah-industrial": {
+      "name": "Sharjah industrial area",
+      "emirate": "sharjah",
+      "lat": 25.3128,
+      "lng": 55.4701,
+      "terrain": 0.4,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.441,
+            "weibullK": 1.918,
+            "meanMs": 4.827,
+            "meanTempC": 19.24,
+            "meanPressureHpa": 1015.3
+          },
+          {
+            "weibullA": 5.742,
+            "weibullK": 1.851,
+            "meanMs": 5.1,
+            "meanTempC": 20.47,
+            "meanPressureHpa": 1013.9
+          },
+          {
+            "weibullA": 5.982,
+            "weibullK": 1.998,
+            "meanMs": 5.302,
+            "meanTempC": 23.32,
+            "meanPressureHpa": 1010.8
+          },
+          {
+            "weibullA": 5.645,
+            "weibullK": 2.178,
+            "meanMs": 4.999,
+            "meanTempC": 27.23,
+            "meanPressureHpa": 1007.4
+          },
+          {
+            "weibullA": 5.733,
+            "weibullK": 2.159,
+            "meanMs": 5.077,
+            "meanTempC": 31.21,
+            "meanPressureHpa": 1003.1
+          },
+          {
+            "weibullA": 5.704,
+            "weibullK": 2.207,
+            "meanMs": 5.052,
+            "meanTempC": 34.19,
+            "meanPressureHpa": 997
+          },
+          {
+            "weibullA": 5.75,
+            "weibullK": 2.358,
+            "meanMs": 5.096,
+            "meanTempC": 35.83,
+            "meanPressureHpa": 994.3
+          },
+          {
+            "weibullA": 5.34,
+            "weibullK": 2.217,
+            "meanMs": 4.73,
+            "meanTempC": 35.56,
+            "meanPressureHpa": 996.6
+          },
+          {
+            "weibullA": 4.775,
+            "weibullK": 2.033,
+            "meanMs": 4.23,
+            "meanTempC": 33.13,
+            "meanPressureHpa": 1001.7
+          },
+          {
+            "weibullA": 4.411,
+            "weibullK": 2.015,
+            "meanMs": 3.909,
+            "meanTempC": 29.78,
+            "meanPressureHpa": 1008.3
+          },
+          {
+            "weibullA": 4.932,
+            "weibullK": 2.148,
+            "meanMs": 4.368,
+            "meanTempC": 25.49,
+            "meanPressureHpa": 1012.7
+          },
+          {
+            "weibullA": 4.71,
+            "weibullK": 2.015,
+            "meanMs": 4.173,
+            "meanTempC": 21.4,
+            "meanPressureHpa": 1015.3
+          }
+        ],
+        "annualMeanMs": 4.737
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.835,
+          3.976,
+          4.758,
+          5.175,
+          5.515
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.86,
+            "bestDecileMs": 3.96
+          },
+          "100": {
+            "meanMs": 4.56,
+            "bestDecileMs": 4.64
+          },
+          "150": {
+            "meanMs": 5.01,
+            "bestDecileMs": 5.06
+          }
+        }
+      },
+      "terrainFactor": 0.9626
+    },
+    "hamriyah": {
+      "name": "Hamriyah free zone",
+      "emirate": "sharjah",
+      "lat": 25.4697,
+      "lng": 55.505,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.319,
+            "weibullK": 1.811,
+            "meanMs": 4.729,
+            "meanTempC": 19.64,
+            "meanPressureHpa": 1017.1
+          },
+          {
+            "weibullA": 5.654,
+            "weibullK": 1.811,
+            "meanMs": 5.026,
+            "meanTempC": 20.58,
+            "meanPressureHpa": 1015.7
+          },
+          {
+            "weibullA": 5.844,
+            "weibullK": 1.932,
+            "meanMs": 5.183,
+            "meanTempC": 23.16,
+            "meanPressureHpa": 1012.6
+          },
+          {
+            "weibullA": 5.524,
+            "weibullK": 2.14,
+            "meanMs": 4.892,
+            "meanTempC": 26.74,
+            "meanPressureHpa": 1009.1
+          },
+          {
+            "weibullA": 5.647,
+            "weibullK": 2.115,
+            "meanMs": 5.001,
+            "meanTempC": 30.57,
+            "meanPressureHpa": 1004.8
+          },
+          {
+            "weibullA": 5.508,
+            "weibullK": 2.173,
+            "meanMs": 4.878,
+            "meanTempC": 33.55,
+            "meanPressureHpa": 998.7
+          },
+          {
+            "weibullA": 5.564,
+            "weibullK": 2.344,
+            "meanMs": 4.931,
+            "meanTempC": 35.13,
+            "meanPressureHpa": 996
+          },
+          {
+            "weibullA": 5.167,
+            "weibullK": 2.113,
+            "meanMs": 4.576,
+            "meanTempC": 34.87,
+            "meanPressureHpa": 998.3
+          },
+          {
+            "weibullA": 4.557,
+            "weibullK": 1.976,
+            "meanMs": 4.039,
+            "meanTempC": 32.75,
+            "meanPressureHpa": 1003.5
+          },
+          {
+            "weibullA": 4.202,
+            "weibullK": 1.995,
+            "meanMs": 3.724,
+            "meanTempC": 29.79,
+            "meanPressureHpa": 1010.1
+          },
+          {
+            "weibullA": 4.783,
+            "weibullK": 2.084,
+            "meanMs": 4.237,
+            "meanTempC": 25.74,
+            "meanPressureHpa": 1014.5
+          },
+          {
+            "weibullA": 4.627,
+            "weibullK": 1.931,
+            "meanMs": 4.104,
+            "meanTempC": 21.8,
+            "meanPressureHpa": 1017.1
+          }
+        ],
+        "annualMeanMs": 4.608
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.803,
+          3.929,
+          4.702,
+          4.939,
+          5.146
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 4.18,
+            "bestDecileMs": 4.33
+          },
+          "100": {
+            "meanMs": 4.97,
+            "bestDecileMs": 5.02
+          },
+          "150": {
+            "meanMs": 5.16,
+            "bestDecileMs": 5.22
+          }
+        }
+      },
+      "terrainFactor": 1.0786
+    },
+    "khorfakkan": {
+      "name": "Khor Fakkan",
+      "emirate": "sharjah",
+      "lat": 25.3394,
+      "lng": 56.3568,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 4.961,
+            "weibullK": 1.339,
+            "meanMs": 4.556,
+            "meanTempC": 20.85,
+            "meanPressureHpa": 1016.5
+          },
+          {
+            "weibullA": 4.842,
+            "weibullK": 1.211,
+            "meanMs": 4.544,
+            "meanTempC": 21.76,
+            "meanPressureHpa": 1015.1
+          },
+          {
+            "weibullA": 5.047,
+            "weibullK": 1.214,
+            "meanMs": 4.734,
+            "meanTempC": 24.57,
+            "meanPressureHpa": 1012.1
+          },
+          {
+            "weibullA": 5.532,
+            "weibullK": 1.28,
+            "meanMs": 5.126,
+            "meanTempC": 29.45,
+            "meanPressureHpa": 1008.5
+          },
+          {
+            "weibullA": 5.642,
+            "weibullK": 1.324,
+            "meanMs": 5.193,
+            "meanTempC": 33.79,
+            "meanPressureHpa": 1004.3
+          },
+          {
+            "weibullA": 4.649,
+            "weibullK": 1.249,
+            "meanMs": 4.331,
+            "meanTempC": 35.15,
+            "meanPressureHpa": 998.8
+          },
+          {
+            "weibullA": 3.835,
+            "weibullK": 1.516,
+            "meanMs": 3.458,
+            "meanTempC": 34.39,
+            "meanPressureHpa": 996.7
+          },
+          {
+            "weibullA": 3.28,
+            "weibullK": 1.819,
+            "meanMs": 2.916,
+            "meanTempC": 33.71,
+            "meanPressureHpa": 999
+          },
+          {
+            "weibullA": 3.037,
+            "weibullK": 1.522,
+            "meanMs": 2.737,
+            "meanTempC": 32.57,
+            "meanPressureHpa": 1003.9
+          },
+          {
+            "weibullA": 3.047,
+            "weibullK": 1.47,
+            "meanMs": 2.758,
+            "meanTempC": 30.32,
+            "meanPressureHpa": 1010.2
+          },
+          {
+            "weibullA": 3.691,
+            "weibullK": 1.393,
+            "meanMs": 3.367,
+            "meanTempC": 26.07,
+            "meanPressureHpa": 1014.4
+          },
+          {
+            "weibullA": 3.843,
+            "weibullK": 1.381,
+            "meanMs": 3.51,
+            "meanTempC": 22.59,
+            "meanPressureHpa": 1016.7
+          }
+        ],
+        "annualMeanMs": 3.932
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.585,
+          3.51,
+          4.082,
+          4.279,
+          4.433
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.18,
+            "bestDecileMs": 4.95
+          },
+          "100": {
+            "meanMs": 3.87,
+            "bestDecileMs": 5.23
+          },
+          "150": {
+            "meanMs": 4.12,
+            "bestDecileMs": 5.26
+          }
+        }
+      },
+      "terrainFactor": 0.9842
+    },
+    "al-dhaid": {
+      "name": "Al Dhaid",
+      "emirate": "sharjah",
+      "lat": 25.2869,
+      "lng": 55.8811,
+      "terrain": 0.03,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.095,
+            "weibullK": 1.753,
+            "meanMs": 4.537,
+            "meanTempC": 18.76,
+            "meanPressureHpa": 1003.7
+          },
+          {
+            "weibullA": 5.37,
+            "weibullK": 1.777,
+            "meanMs": 4.779,
+            "meanTempC": 20.36,
+            "meanPressureHpa": 1002.4
+          },
+          {
+            "weibullA": 5.606,
+            "weibullK": 1.801,
+            "meanMs": 4.985,
+            "meanTempC": 23.5,
+            "meanPressureHpa": 999.5
+          },
+          {
+            "weibullA": 5.356,
+            "weibullK": 1.907,
+            "meanMs": 4.753,
+            "meanTempC": 28.02,
+            "meanPressureHpa": 996.3
+          },
+          {
+            "weibullA": 5.427,
+            "weibullK": 1.917,
+            "meanMs": 4.814,
+            "meanTempC": 32.37,
+            "meanPressureHpa": 992.3
+          },
+          {
+            "weibullA": 5.406,
+            "weibullK": 1.895,
+            "meanMs": 4.798,
+            "meanTempC": 35.28,
+            "meanPressureHpa": 986.5
+          },
+          {
+            "weibullA": 5.43,
+            "weibullK": 2.112,
+            "meanMs": 4.809,
+            "meanTempC": 36.42,
+            "meanPressureHpa": 984
+          },
+          {
+            "weibullA": 5.076,
+            "weibullK": 1.847,
+            "meanMs": 4.509,
+            "meanTempC": 36.1,
+            "meanPressureHpa": 986.2
+          },
+          {
+            "weibullA": 4.542,
+            "weibullK": 1.782,
+            "meanMs": 4.041,
+            "meanTempC": 33.47,
+            "meanPressureHpa": 991.1
+          },
+          {
+            "weibullA": 4.066,
+            "weibullK": 1.711,
+            "meanMs": 3.626,
+            "meanTempC": 29.69,
+            "meanPressureHpa": 997.4
+          },
+          {
+            "weibullA": 4.601,
+            "weibullK": 1.887,
+            "meanMs": 4.084,
+            "meanTempC": 24.86,
+            "meanPressureHpa": 1001.5
+          },
+          {
+            "weibullA": 4.419,
+            "weibullK": 1.737,
+            "meanMs": 3.937,
+            "meanTempC": 20.69,
+            "meanPressureHpa": 1003.8
+          }
+        ],
+        "annualMeanMs": 4.471
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.879,
+          4.035,
+          4.828,
+          5.311,
+          5.711
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.53,
+            "bestDecileMs": 3.73
+          },
+          "100": {
+            "meanMs": 4.72,
+            "bestDecileMs": 4.81
+          },
+          "150": {
+            "meanMs": 5.32,
+            "bestDecileMs": 5.4
+          }
+        }
+      },
+      "terrainFactor": 1.0557,
+      "siting": "ridge"
+    },
+    "ajman": {
+      "name": "Ajman city",
+      "emirate": "ajman",
+      "lat": 25.4052,
+      "lng": 55.47,
+      "terrain": 0.4,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.448,
+            "weibullK": 1.806,
+            "meanMs": 4.844,
+            "meanTempC": 19.51,
+            "meanPressureHpa": 1016.8
+          },
+          {
+            "weibullA": 5.79,
+            "weibullK": 1.809,
+            "meanMs": 5.147,
+            "meanTempC": 20.53,
+            "meanPressureHpa": 1015.4
+          },
+          {
+            "weibullA": 5.97,
+            "weibullK": 1.953,
+            "meanMs": 5.294,
+            "meanTempC": 23.12,
+            "meanPressureHpa": 1012.3
+          },
+          {
+            "weibullA": 5.647,
+            "weibullK": 2.137,
+            "meanMs": 5.001,
+            "meanTempC": 26.74,
+            "meanPressureHpa": 1008.8
+          },
+          {
+            "weibullA": 5.775,
+            "weibullK": 2.103,
+            "meanMs": 5.115,
+            "meanTempC": 30.58,
+            "meanPressureHpa": 1004.5
+          },
+          {
+            "weibullA": 5.607,
+            "weibullK": 2.181,
+            "meanMs": 4.966,
+            "meanTempC": 33.59,
+            "meanPressureHpa": 998.4
+          },
+          {
+            "weibullA": 5.645,
+            "weibullK": 2.383,
+            "meanMs": 5.004,
+            "meanTempC": 35.23,
+            "meanPressureHpa": 995.7
+          },
+          {
+            "weibullA": 5.213,
+            "weibullK": 2.201,
+            "meanMs": 4.616,
+            "meanTempC": 34.98,
+            "meanPressureHpa": 998
+          },
+          {
+            "weibullA": 4.653,
+            "weibullK": 2.016,
+            "meanMs": 4.123,
+            "meanTempC": 32.78,
+            "meanPressureHpa": 1003.1
+          },
+          {
+            "weibullA": 4.285,
+            "weibullK": 2.011,
+            "meanMs": 3.797,
+            "meanTempC": 29.73,
+            "meanPressureHpa": 1009.7
+          },
+          {
+            "weibullA": 4.889,
+            "weibullK": 2.108,
+            "meanMs": 4.33,
+            "meanTempC": 25.65,
+            "meanPressureHpa": 1014.1
+          },
+          {
+            "weibullA": 4.742,
+            "weibullK": 1.954,
+            "meanMs": 4.204,
+            "meanTempC": 21.69,
+            "meanPressureHpa": 1016.8
+          }
+        ],
+        "annualMeanMs": 4.701
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.868,
+          4.02,
+          4.809,
+          5.025,
+          5.253
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.82,
+            "bestDecileMs": 4.04
+          },
+          "100": {
+            "meanMs": 4.69,
+            "bestDecileMs": 4.83
+          },
+          "150": {
+            "meanMs": 4.99,
+            "bestDecileMs": 5.04
+          }
+        }
+      },
+      "terrainFactor": 0.9977
+    },
+    "ajman-manama": {
+      "name": "Manama, Ajman",
+      "emirate": "ajman",
+      "lat": 25.3215,
+      "lng": 56.017,
+      "terrain": 0.03,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.008,
+            "weibullK": 1.659,
+            "meanMs": 4.476,
+            "meanTempC": 18.79,
+            "meanPressureHpa": 993.6
+          },
+          {
+            "weibullA": 5.367,
+            "weibullK": 1.662,
+            "meanMs": 4.796,
+            "meanTempC": 20.42,
+            "meanPressureHpa": 992.3
+          },
+          {
+            "weibullA": 5.572,
+            "weibullK": 1.644,
+            "meanMs": 4.984,
+            "meanTempC": 23.51,
+            "meanPressureHpa": 989.6
+          },
+          {
+            "weibullA": 5.197,
+            "weibullK": 1.79,
+            "meanMs": 4.623,
+            "meanTempC": 28.24,
+            "meanPressureHpa": 986.6
+          },
+          {
+            "weibullA": 5.178,
+            "weibullK": 1.842,
+            "meanMs": 4.6,
+            "meanTempC": 32.59,
+            "meanPressureHpa": 982.9
+          },
+          {
+            "weibullA": 5.322,
+            "weibullK": 1.72,
+            "meanMs": 4.745,
+            "meanTempC": 35.35,
+            "meanPressureHpa": 977.3
+          },
+          {
+            "weibullA": 5.706,
+            "weibullK": 1.852,
+            "meanMs": 5.068,
+            "meanTempC": 36.04,
+            "meanPressureHpa": 974.9
+          },
+          {
+            "weibullA": 5.377,
+            "weibullK": 1.627,
+            "meanMs": 4.814,
+            "meanTempC": 35.9,
+            "meanPressureHpa": 977
+          },
+          {
+            "weibullA": 4.74,
+            "weibullK": 1.646,
+            "meanMs": 4.239,
+            "meanTempC": 33.59,
+            "meanPressureHpa": 981.8
+          },
+          {
+            "weibullA": 4.236,
+            "weibullK": 1.631,
+            "meanMs": 3.792,
+            "meanTempC": 29.93,
+            "meanPressureHpa": 987.9
+          },
+          {
+            "weibullA": 4.656,
+            "weibullK": 1.737,
+            "meanMs": 4.149,
+            "meanTempC": 24.9,
+            "meanPressureHpa": 991.7
+          },
+          {
+            "weibullA": 4.475,
+            "weibullK": 1.675,
+            "meanMs": 3.997,
+            "meanTempC": 20.91,
+            "meanPressureHpa": 993.8
+          }
+        ],
+        "annualMeanMs": 4.523
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.139,
+          4.391,
+          5.242,
+          5.531,
+          5.742
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 4.14,
+            "bestDecileMs": 4.43
+          },
+          "100": {
+            "meanMs": 5.22,
+            "bestDecileMs": 5.47
+          },
+          "150": {
+            "meanMs": 5.56,
+            "bestDecileMs": 5.81
+          }
+        }
+      },
+      "terrainFactor": 1.1541,
+      "siting": "ridge"
+    },
+    "umm-al-quwain": {
+      "name": "Umm Al Quwain city",
+      "emirate": "umm-al-quwain",
+      "lat": 25.5647,
+      "lng": 55.5553,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.323,
+            "weibullK": 1.795,
+            "meanMs": 4.734,
+            "meanTempC": 19.88,
+            "meanPressureHpa": 1017
+          },
+          {
+            "weibullA": 5.632,
+            "weibullK": 1.785,
+            "meanMs": 5.01,
+            "meanTempC": 20.7,
+            "meanPressureHpa": 1015.6
+          },
+          {
+            "weibullA": 5.814,
+            "weibullK": 1.884,
+            "meanMs": 5.161,
+            "meanTempC": 23.16,
+            "meanPressureHpa": 1012.4
+          },
+          {
+            "weibullA": 5.462,
+            "weibullK": 2.107,
+            "meanMs": 4.838,
+            "meanTempC": 26.66,
+            "meanPressureHpa": 1008.9
+          },
+          {
+            "weibullA": 5.585,
+            "weibullK": 2.092,
+            "meanMs": 4.947,
+            "meanTempC": 30.47,
+            "meanPressureHpa": 1004.7
+          },
+          {
+            "weibullA": 5.477,
+            "weibullK": 2.123,
+            "meanMs": 4.85,
+            "meanTempC": 33.39,
+            "meanPressureHpa": 998.6
+          },
+          {
+            "weibullA": 5.582,
+            "weibullK": 2.243,
+            "meanMs": 4.944,
+            "meanTempC": 34.9,
+            "meanPressureHpa": 996
+          },
+          {
+            "weibullA": 5.167,
+            "weibullK": 1.998,
+            "meanMs": 4.579,
+            "meanTempC": 34.66,
+            "meanPressureHpa": 998.2
+          },
+          {
+            "weibullA": 4.535,
+            "weibullK": 1.933,
+            "meanMs": 4.022,
+            "meanTempC": 32.7,
+            "meanPressureHpa": 1003.3
+          },
+          {
+            "weibullA": 4.194,
+            "weibullK": 1.963,
+            "meanMs": 3.718,
+            "meanTempC": 29.93,
+            "meanPressureHpa": 1009.9
+          },
+          {
+            "weibullA": 4.748,
+            "weibullK": 2.03,
+            "meanMs": 4.207,
+            "meanTempC": 25.96,
+            "meanPressureHpa": 1014.3
+          },
+          {
+            "weibullA": 4.598,
+            "weibullK": 1.911,
+            "meanMs": 4.08,
+            "meanTempC": 22.12,
+            "meanPressureHpa": 1017
+          }
+        ],
+        "annualMeanMs": 4.589
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.654,
+          3.718,
+          4.449,
+          4.64,
+          4.851
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.99,
+            "bestDecileMs": 4.18
+          },
+          "100": {
+            "meanMs": 4.7,
+            "bestDecileMs": 4.76
+          },
+          "150": {
+            "meanMs": 4.78,
+            "bestDecileMs": 4.82
+          }
+        }
+      },
+      "terrainFactor": 1.0242
+    },
+    "ras-al-khaimah": {
+      "name": "Ras Al Khaimah city",
+      "emirate": "ras-al-khaimah",
+      "lat": 25.7895,
+      "lng": 55.9432,
+      "terrain": 0.4,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 3.375,
+            "weibullK": 1.494,
+            "meanMs": 3.048,
+            "meanTempC": 19.76,
+            "meanPressureHpa": 1017.1
+          },
+          {
+            "weibullA": 3.481,
+            "weibullK": 1.468,
+            "meanMs": 3.151,
+            "meanTempC": 21.05,
+            "meanPressureHpa": 1015.7
+          },
+          {
+            "weibullA": 3.71,
+            "weibullK": 1.512,
+            "meanMs": 3.346,
+            "meanTempC": 23.81,
+            "meanPressureHpa": 1012.7
+          },
+          {
+            "weibullA": 3.462,
+            "weibullK": 1.787,
+            "meanMs": 3.08,
+            "meanTempC": 27.93,
+            "meanPressureHpa": 1009.2
+          },
+          {
+            "weibullA": 3.734,
+            "weibullK": 1.736,
+            "meanMs": 3.327,
+            "meanTempC": 32.05,
+            "meanPressureHpa": 1005
+          },
+          {
+            "weibullA": 3.636,
+            "weibullK": 1.737,
+            "meanMs": 3.239,
+            "meanTempC": 34.59,
+            "meanPressureHpa": 999
+          },
+          {
+            "weibullA": 3.472,
+            "weibullK": 1.765,
+            "meanMs": 3.091,
+            "meanTempC": 35.61,
+            "meanPressureHpa": 996.5
+          },
+          {
+            "weibullA": 3.194,
+            "weibullK": 1.741,
+            "meanMs": 2.845,
+            "meanTempC": 35.51,
+            "meanPressureHpa": 998.7
+          },
+          {
+            "weibullA": 2.905,
+            "weibullK": 1.643,
+            "meanMs": 2.599,
+            "meanTempC": 33.39,
+            "meanPressureHpa": 1003.8
+          },
+          {
+            "weibullA": 2.709,
+            "weibullK": 1.638,
+            "meanMs": 2.423,
+            "meanTempC": 30.39,
+            "meanPressureHpa": 1010.3
+          },
+          {
+            "weibullA": 2.801,
+            "weibullK": 1.626,
+            "meanMs": 2.508,
+            "meanTempC": 25.7,
+            "meanPressureHpa": 1014.6
+          },
+          {
+            "weibullA": 2.86,
+            "weibullK": 1.57,
+            "meanMs": 2.569,
+            "meanTempC": 21.78,
+            "meanPressureHpa": 1017.1
+          }
+        ],
+        "annualMeanMs": 2.935
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.047,
+          2.87,
+          3.432,
+          3.488,
+          3.445
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 2.73,
+            "bestDecileMs": 3.06
+          },
+          "100": {
+            "meanMs": 3.29,
+            "bestDecileMs": 3.48
+          },
+          "150": {
+            "meanMs": 3.3,
+            "bestDecileMs": 3.43
+          }
+        }
+      },
+      "terrainFactor": 1.121
+    },
+    "al-hamra": {
+      "name": "Al Hamra, RAK",
+      "emirate": "ras-al-khaimah",
+      "lat": 25.688,
+      "lng": 55.79,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 4.605,
+            "weibullK": 1.682,
+            "meanMs": 4.112,
+            "meanTempC": 19.65,
+            "meanPressureHpa": 1016.8
+          },
+          {
+            "weibullA": 4.788,
+            "weibullK": 1.635,
+            "meanMs": 4.284,
+            "meanTempC": 20.54,
+            "meanPressureHpa": 1015.4
+          },
+          {
+            "weibullA": 5.05,
+            "weibullK": 1.782,
+            "meanMs": 4.493,
+            "meanTempC": 23.04,
+            "meanPressureHpa": 1012.3
+          },
+          {
+            "weibullA": 4.747,
+            "weibullK": 2.049,
+            "meanMs": 4.206,
+            "meanTempC": 26.56,
+            "meanPressureHpa": 1008.8
+          },
+          {
+            "weibullA": 4.997,
+            "weibullK": 2.076,
+            "meanMs": 4.426,
+            "meanTempC": 30.43,
+            "meanPressureHpa": 1004.5
+          },
+          {
+            "weibullA": 4.943,
+            "weibullK": 2.07,
+            "meanMs": 4.378,
+            "meanTempC": 33.3,
+            "meanPressureHpa": 998.3
+          },
+          {
+            "weibullA": 4.709,
+            "weibullK": 2.058,
+            "meanMs": 4.171,
+            "meanTempC": 34.76,
+            "meanPressureHpa": 995.7
+          },
+          {
+            "weibullA": 4.318,
+            "weibullK": 1.999,
+            "meanMs": 3.827,
+            "meanTempC": 34.53,
+            "meanPressureHpa": 998
+          },
+          {
+            "weibullA": 3.995,
+            "weibullK": 1.813,
+            "meanMs": 3.552,
+            "meanTempC": 32.47,
+            "meanPressureHpa": 1003.1
+          },
+          {
+            "weibullA": 3.587,
+            "weibullK": 1.9,
+            "meanMs": 3.183,
+            "meanTempC": 29.68,
+            "meanPressureHpa": 1009.7
+          },
+          {
+            "weibullA": 3.963,
+            "weibullK": 1.878,
+            "meanMs": 3.518,
+            "meanTempC": 25.55,
+            "meanPressureHpa": 1014.2
+          },
+          {
+            "weibullA": 3.996,
+            "weibullK": 1.765,
+            "meanMs": 3.557,
+            "meanTempC": 21.69,
+            "meanPressureHpa": 1016.8
+          }
+        ],
+        "annualMeanMs": 3.974
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.238,
+          3.137,
+          3.757,
+          3.832,
+          3.848
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 2.95,
+            "bestDecileMs": 3.24
+          },
+          "100": {
+            "meanMs": 3.78,
+            "bestDecileMs": 3.88
+          },
+          "150": {
+            "meanMs": 3.9,
+            "bestDecileMs": 3.99
+          }
+        }
+      },
+      "terrainFactor": 0.9512
+    },
+    "jebel-jais": {
+      "name": "Jebel Jais",
+      "emirate": "ras-al-khaimah",
+      "lat": 25.935,
+      "lng": 56.15,
+      "terrain": 0.03,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 3.3,
+            "weibullK": 1.428,
+            "meanMs": 2.999,
+            "meanTempC": 12.01,
+            "meanPressureHpa": 874.8
+          },
+          {
+            "weibullA": 3.277,
+            "weibullK": 1.417,
+            "meanMs": 2.981,
+            "meanTempC": 14.14,
+            "meanPressureHpa": 874.6
+          },
+          {
+            "weibullA": 3.583,
+            "weibullK": 1.585,
+            "meanMs": 3.215,
+            "meanTempC": 17.83,
+            "meanPressureHpa": 873.9
+          },
+          {
+            "weibullA": 3.618,
+            "weibullK": 1.846,
+            "meanMs": 3.214,
+            "meanTempC": 23.13,
+            "meanPressureHpa": 873.7
+          },
+          {
+            "weibullA": 3.528,
+            "weibullK": 1.915,
+            "meanMs": 3.129,
+            "meanTempC": 27.97,
+            "meanPressureHpa": 872.5
+          },
+          {
+            "weibullA": 3.147,
+            "weibullK": 1.955,
+            "meanMs": 2.79,
+            "meanTempC": 31.49,
+            "meanPressureHpa": 869.1
+          },
+          {
+            "weibullA": 2.892,
+            "weibullK": 1.917,
+            "meanMs": 2.565,
+            "meanTempC": 31.18,
+            "meanPressureHpa": 867
+          },
+          {
+            "weibullA": 2.45,
+            "weibullK": 1.948,
+            "meanMs": 2.172,
+            "meanTempC": 31.08,
+            "meanPressureHpa": 868.9
+          },
+          {
+            "weibullA": 2.343,
+            "weibullK": 1.797,
+            "meanMs": 2.084,
+            "meanTempC": 28.81,
+            "meanPressureHpa": 872.1
+          },
+          {
+            "weibullA": 2.068,
+            "weibullK": 1.796,
+            "meanMs": 1.839,
+            "meanTempC": 24.07,
+            "meanPressureHpa": 875.6
+          },
+          {
+            "weibullA": 2.517,
+            "weibullK": 1.491,
+            "meanMs": 2.274,
+            "meanTempC": 17.94,
+            "meanPressureHpa": 876.2
+          },
+          {
+            "weibullA": 2.593,
+            "weibullK": 1.508,
+            "meanMs": 2.34,
+            "meanTempC": 13.91,
+            "meanPressureHpa": 876
+          }
+        ],
+        "annualMeanMs": 2.632
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          1.881,
+          2.635,
+          3.152,
+          3.419,
+          3.645
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 3.22,
+            "bestDecileMs": 5.09
+          },
+          "100": {
+            "meanMs": 3.77,
+            "bestDecileMs": 5.42
+          },
+          "150": {
+            "meanMs": 4.14,
+            "bestDecileMs": 5.59
+          }
+        }
+      },
+      "terrainFactor": 1.4324,
+      "siting": "ridge"
+    },
+    "fujairah": {
+      "name": "Fujairah city",
+      "emirate": "fujairah",
+      "lat": 25.123,
+      "lng": 56.337,
+      "terrain": 0.4,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 4.976,
+            "weibullK": 1.395,
+            "meanMs": 4.538,
+            "meanTempC": 20.48,
+            "meanPressureHpa": 1015.4
+          },
+          {
+            "weibullA": 4.912,
+            "weibullK": 1.242,
+            "meanMs": 4.581,
+            "meanTempC": 21.47,
+            "meanPressureHpa": 1014.1
+          },
+          {
+            "weibullA": 5.051,
+            "weibullK": 1.254,
+            "meanMs": 4.702,
+            "meanTempC": 24.42,
+            "meanPressureHpa": 1011
+          },
+          {
+            "weibullA": 5.529,
+            "weibullK": 1.339,
+            "meanMs": 5.077,
+            "meanTempC": 29.48,
+            "meanPressureHpa": 1007.4
+          },
+          {
+            "weibullA": 5.603,
+            "weibullK": 1.372,
+            "meanMs": 5.124,
+            "meanTempC": 33.94,
+            "meanPressureHpa": 1003.2
+          },
+          {
+            "weibullA": 4.609,
+            "weibullK": 1.262,
+            "meanMs": 4.283,
+            "meanTempC": 35.29,
+            "meanPressureHpa": 997.7
+          },
+          {
+            "weibullA": 3.718,
+            "weibullK": 1.493,
+            "meanMs": 3.358,
+            "meanTempC": 34.62,
+            "meanPressureHpa": 995.5
+          },
+          {
+            "weibullA": 3.21,
+            "weibullK": 1.694,
+            "meanMs": 2.865,
+            "meanTempC": 33.9,
+            "meanPressureHpa": 997.9
+          },
+          {
+            "weibullA": 3.009,
+            "weibullK": 1.472,
+            "meanMs": 2.723,
+            "meanTempC": 32.57,
+            "meanPressureHpa": 1002.8
+          },
+          {
+            "weibullA": 3.084,
+            "weibullK": 1.453,
+            "meanMs": 2.796,
+            "meanTempC": 30,
+            "meanPressureHpa": 1009.1
+          },
+          {
+            "weibullA": 3.758,
+            "weibullK": 1.423,
+            "meanMs": 3.417,
+            "meanTempC": 25.65,
+            "meanPressureHpa": 1013.3
+          },
+          {
+            "weibullA": 3.913,
+            "weibullK": 1.42,
+            "meanMs": 3.559,
+            "meanTempC": 22.05,
+            "meanPressureHpa": 1015.7
+          }
+        ],
+        "annualMeanMs": 3.914
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.451,
+          3.354,
+          3.928,
+          4.519,
+          5.009
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 2.84,
+            "bestDecileMs": 2.96
+          },
+          "100": {
+            "meanMs": 3.59,
+            "bestDecileMs": 3.8
+          },
+          "150": {
+            "meanMs": 4.12,
+            "bestDecileMs": 4.39
+          }
+        }
+      },
+      "terrainFactor": 0.9172
+    },
+    "al-halah": {
+      "name": "Al Halah",
+      "emirate": "fujairah",
+      "lat": 25.4975,
+      "lng": 56.1519,
+      "terrain": 0.03,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 5.46,
+            "weibullK": 1.681,
+            "meanMs": 4.876,
+            "meanTempC": 17.04,
+            "meanPressureHpa": 957.2
+          },
+          {
+            "weibullA": 5.537,
+            "weibullK": 1.604,
+            "meanMs": 4.964,
+            "meanTempC": 18.54,
+            "meanPressureHpa": 956.2
+          },
+          {
+            "weibullA": 5.786,
+            "weibullK": 1.708,
+            "meanMs": 5.161,
+            "meanTempC": 21.58,
+            "meanPressureHpa": 954
+          },
+          {
+            "weibullA": 5.633,
+            "weibullK": 1.878,
+            "meanMs": 5.001,
+            "meanTempC": 26.55,
+            "meanPressureHpa": 951.8
+          },
+          {
+            "weibullA": 5.561,
+            "weibullK": 1.926,
+            "meanMs": 4.933,
+            "meanTempC": 30.92,
+            "meanPressureHpa": 948.8
+          },
+          {
+            "weibullA": 5.428,
+            "weibullK": 1.921,
+            "meanMs": 4.815,
+            "meanTempC": 33.34,
+            "meanPressureHpa": 943.8
+          },
+          {
+            "weibullA": 5.4,
+            "weibullK": 1.973,
+            "meanMs": 4.787,
+            "meanTempC": 33.45,
+            "meanPressureHpa": 941.6
+          },
+          {
+            "weibullA": 4.949,
+            "weibullK": 1.794,
+            "meanMs": 4.402,
+            "meanTempC": 33.15,
+            "meanPressureHpa": 943.6
+          },
+          {
+            "weibullA": 4.429,
+            "weibullK": 1.812,
+            "meanMs": 3.937,
+            "meanTempC": 31.44,
+            "meanPressureHpa": 948
+          },
+          {
+            "weibullA": 3.94,
+            "weibullK": 1.738,
+            "meanMs": 3.51,
+            "meanTempC": 28.08,
+            "meanPressureHpa": 953.4
+          },
+          {
+            "weibullA": 4.605,
+            "weibullK": 1.817,
+            "meanMs": 4.094,
+            "meanTempC": 22.94,
+            "meanPressureHpa": 956.3
+          },
+          {
+            "weibullA": 4.562,
+            "weibullK": 1.737,
+            "meanMs": 4.065,
+            "meanTempC": 19.09,
+            "meanPressureHpa": 957.7
+          }
+        ],
+        "annualMeanMs": 4.543
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          3.161,
+          4.432,
+          5.304,
+          5.827,
+          6.246
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 4.82,
+            "bestDecileMs": 6.2
+          },
+          "100": {
+            "meanMs": 5.68,
+            "bestDecileMs": 6.89
+          },
+          "150": {
+            "meanMs": 6.15,
+            "bestDecileMs": 7.22
+          }
+        }
+      },
+      "terrainFactor": 1.2503,
+      "siting": "ridge"
+    },
+    "dibba": {
+      "name": "Dibba Al Fujairah",
+      "emirate": "fujairah",
+      "lat": 25.616,
+      "lng": 56.271,
+      "terrain": 0.1,
+      "era5": {
+        "months": [
+          {
+            "weibullA": 4.115,
+            "weibullK": 1.296,
+            "meanMs": 3.803,
+            "meanTempC": 20.57,
+            "meanPressureHpa": 1016.8
+          },
+          {
+            "weibullA": 4.046,
+            "weibullK": 1.213,
+            "meanMs": 3.795,
+            "meanTempC": 21.57,
+            "meanPressureHpa": 1015.5
+          },
+          {
+            "weibullA": 4.187,
+            "weibullK": 1.209,
+            "meanMs": 3.931,
+            "meanTempC": 24.28,
+            "meanPressureHpa": 1012.4
+          },
+          {
+            "weibullA": 4.55,
+            "weibullK": 1.296,
+            "meanMs": 4.205,
+            "meanTempC": 29.09,
+            "meanPressureHpa": 1008.8
+          },
+          {
+            "weibullA": 4.669,
+            "weibullK": 1.361,
+            "meanMs": 4.276,
+            "meanTempC": 33.39,
+            "meanPressureHpa": 1004.6
+          },
+          {
+            "weibullA": 3.916,
+            "weibullK": 1.332,
+            "meanMs": 3.599,
+            "meanTempC": 34.91,
+            "meanPressureHpa": 999
+          },
+          {
+            "weibullA": 3.303,
+            "weibullK": 1.538,
+            "meanMs": 2.973,
+            "meanTempC": 34.41,
+            "meanPressureHpa": 996.9
+          },
+          {
+            "weibullA": 2.737,
+            "weibullK": 1.681,
+            "meanMs": 2.444,
+            "meanTempC": 33.86,
+            "meanPressureHpa": 999.3
+          },
+          {
+            "weibullA": 2.627,
+            "weibullK": 1.524,
+            "meanMs": 2.367,
+            "meanTempC": 32.6,
+            "meanPressureHpa": 1004.1
+          },
+          {
+            "weibullA": 2.56,
+            "weibullK": 1.456,
+            "meanMs": 2.32,
+            "meanTempC": 30.39,
+            "meanPressureHpa": 1010.4
+          },
+          {
+            "weibullA": 3.07,
+            "weibullK": 1.372,
+            "meanMs": 2.807,
+            "meanTempC": 25.94,
+            "meanPressureHpa": 1014.7
+          },
+          {
+            "weibullA": 3.085,
+            "weibullK": 1.313,
+            "meanMs": 2.843,
+            "meanTempC": 22.35,
+            "meanPressureHpa": 1017.1
+          }
+        ],
+        "annualMeanMs": 3.277
+      },
+      "gwa": {
+        "roughnessLengthM": 0.03,
+        "heights": [
+          10,
+          50,
+          100,
+          150,
+          200
+        ],
+        "meanMsByHeight": [
+          2.103,
+          2.907,
+          3.44,
+          3.443,
+          3.351
+        ],
+        "gridded": {
+          "50": {
+            "meanMs": 2.39,
+            "bestDecileMs": 2.56
+          },
+          "100": {
+            "meanMs": 3.07,
+            "bestDecileMs": 3.33
+          },
+          "150": {
+            "meanMs": 3.11,
+            "bestDecileMs": 3.43
+          }
+        }
+      },
+      "terrainFactor": 0.9368
+    }
+  }
+}

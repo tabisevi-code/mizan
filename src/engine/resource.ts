@@ -21,12 +21,14 @@ import {
   type Provenance,
 } from "./types";
 import {
+  buildSolarYear,
   clearSkyGhi,
   modelledWeatherYear,
-  monthOfHour,
   solarPosition,
+  type SolarYear,
   type WeatherYear,
 } from "./solar";
+import { monthOfHour } from "./calendar";
 import grid from "../data/uae-resource-grid.json";
 
 export type ResourcePoint = {
@@ -83,8 +85,9 @@ const clearSkyDailyKwhM2 = (site: LatLng, month: number): number => {
  * sky arrives. Temperature and 10 m wind monthly means come from the same
  * reanalysis point.
  */
-export const weatherYearFor = (site: LatLng): WeatherYear => {
+export const weatherYearFor = (site: LatLng, sun?: SolarYear): WeatherYear => {
   const point = resourcePointFor(site);
+  const solarYear = sun ?? buildSolarYear(site);
   const ghi = newSeries();
   const ambientC = newSeries();
   const windMs = newSeries();
@@ -96,8 +99,7 @@ export const weatherYearFor = (site: LatLng): WeatherYear => {
 
   for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
     const month = monthOfHour(hour);
-    const sun = solarPosition(site, hour);
-    ghi[hour] = clearSkyGhi(sun.cosZenith) * clearnessRatio[month];
+    ghi[hour] = clearSkyGhi(solarYear.position[hour].cosZenith) * clearnessRatio[month];
 
     const localHour = hour % 24;
     const swing = 9; // daily temperature range, degrees C
@@ -171,5 +173,9 @@ export const windMonthlyKwhPerKw = (
   });
 
 /** Convenience wrapper used where a weather year is needed and none is supplied. */
-export const weatherOrModelled = (site: LatLng, weather?: WeatherYear): WeatherYear =>
-  weather ?? (POINTS.length > 0 ? weatherYearFor(site) : modelledWeatherYear(site));
+export const weatherOrModelled = (
+  site: LatLng,
+  weather?: WeatherYear,
+  sun?: SolarYear,
+): WeatherYear =>
+  weather ?? (POINTS.length > 0 ? weatherYearFor(site, sun) : modelledWeatherYear(site, sun));

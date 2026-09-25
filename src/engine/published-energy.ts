@@ -1,5 +1,7 @@
-import type { PublishedEnergy } from "../data/mapped-project-types";
-import { MONTH_HOURS } from "../data/uae-monthly-profiles";
+import { MONTH_HOURS } from "./calendar";
+
+/** Nameplate storage: MW power, MWh energy, round-trip efficiency as a fraction. */
+export type StorageSpec = { powerMw: number; energyMwh: number; roundTripEfficiency: number };
 
 /** A capacity-factor sensitivity, not a reconstruction of measured generation. */
 export function capacityFactorMonthly(capacityKw: number, factor: number): number[] {
@@ -7,7 +9,7 @@ export function capacityFactorMonthly(capacityKw: number, factor: number): numbe
   return MONTH_HOURS.map(h => h * capacityKw * factor);
 }
 
-export function storageCycle(storage: NonNullable<PublishedEnergy["storage"]>, fraction: number) {
+export function storageCycle(storage: StorageSpec, fraction: number) {
   if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1 || storage.powerMw <= 0 || storage.energyMwh <= 0 || storage.roundTripEfficiency <= 0 || storage.roundTripEfficiency > 1) throw new Error("Invalid storage scenario");
   const deliveredMwh = storage.energyMwh * fraction;
   const chargingMwh = deliveredMwh / storage.roundTripEfficiency;

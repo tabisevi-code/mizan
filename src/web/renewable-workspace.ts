@@ -4,9 +4,9 @@ import { renderPublishedEnergy } from "./published-energy";
 import { SOURCE_LABELS } from "../data/uae-monthly-profiles";
 import { basemapCredit, tileLayer, type Basemap } from "./tiles";
 import { renderRenewables, renewableAnalysisFor } from "./renewables";
+import { esc } from "./format";
 
 const el = (id: string) => document.getElementById(id)!;
-const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const num = (n: number) => new Intl.NumberFormat("en-AE", { maximumFractionDigits: 1 }).format(n);
 const money = (n: number) => `AED ${num(Math.round(n))}`;
 
@@ -89,5 +89,5 @@ export function renderRenewableWorkspace(portfolio: RenewablePortfolio, site: Re
     <div class="fact-row"><span>Approved load${site.approvedLoadKw === null ? "" : " · assumed"}</span><b>${site.approvedLoadKw === null ? "Not published" : `${num(site.approvedLoadKw)} kW`}</b></div>
     <div class="fact-row"><span>Solar design ceiling</span><b>${num(site.solarKw)} kWp</b></div>
     <div class="fact-row"><span>Location evidence</span><b>${site.mapGeometry ? "Mapped footprint" : "Regional coordinates"}</b></div>`;
-  el("trust").innerHTML = `<p class="note">${esc(site.description)}</p><p class="note">Solar uses the existing UAE temperature and dust model. Wind capacity factors and hydro flows are sensitivity assumptions. No export revenue is included. Monthly matching can overestimate savings until interval data is available. Regional coordinates do not establish land rights, roof area or connection permission.</p>`;
+  el("trust").innerHTML = `<p class="note">${esc(site.description)}</p><p class="note">Solar uses the existing UAE temperature and dust model. Wind output is modelled from Global Wind Atlas + ERA5 at the nearest climate point, not measured on site; hydro flows are sensitivity assumptions. No export revenue is included. Monthly matching can overestimate savings until interval data is available. Regional coordinates do not establish land rights, roof area or connection permission.</p>`;
 }

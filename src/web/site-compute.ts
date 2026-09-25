@@ -4,17 +4,16 @@
  * globals — so the engine worker can run it off the main thread.
  */
 
-import { metresToLngLat, packRoof, plantPositions, type PolygonM } from "../engine/packing";
-import { plan, type CapacityOverride, type PlanResult } from "../engine/plan";
+import { metresToLngLat, plantPositions, type PackResult, type PolygonM } from "../engine/packing";
+import { type PlanResult } from "../engine/plan";
+import { analyzeRoof } from "../engine/analyze";
 import { DEFAULT_PACK } from "../engine/packing";
-import { DEFAULT_ROOF_TILT_DEG } from "../engine/pv";
-import { modelledWeatherYear, type WeatherYear } from "../engine/solar";
+import { type WeatherYear } from "../engine/solar";
 import {
   buildSkyEnergy,
   neighbourObstructions,
   obstructionShading,
   rowShading,
-  shadingCurve,
   thinRows,
   type ObstructionShading,
   type ShadingResult,
@@ -38,7 +37,7 @@ export type Outcome = {
   /** The sentence that explains the verdict. */
   reason: string;
   result: PlanResult;
-  packed: ReturnType<typeof packRoof>;
+  packed: PackResult;
   polygon: PolygonM;
   shading: ShadingResult | null;
   blocked: (ObstructionShading & { unknownHeights: number; considered: number; taller: number }) | null;
@@ -48,14 +47,6 @@ export type Outcome = {
   weather: WeatherYear;
   profile: SiteProfile;
 };
-
-const shadingOptions = (layout: "south" | "east-west") => ({
-  tiltDeg: DEFAULT_ROOF_TILT_DEG,
-  azimuthDeg: layout === "east-west" ? -90 : 0,
-  moduleLengthM: DEFAULT_PACK.moduleHeightM,
-  moduleWidthM: DEFAULT_PACK.moduleWidthM,
-  albedo: 0.15,
-});
 
 export const latLngOfSite = (
   site: PortfolioSite,
@@ -110,65 +101,61 @@ export const computeSite = (
   const location = latLngOfSite(site, buildings, sceneOrigin);
   const origin = { lng: sceneOrigin[0], lat: sceneOrigin[1] };
   const profile = profileFor(site, polygon, location, origin);
-  const weather = modelledWeatherYear(location);
-
-  const south = packRoof(polygon, location.lat, { layout: "south" });
-  const eastWest = packRoof(polygon, location.lat, { layout: "east-west" });
 
   // What the buildings around it block. Needs this roof's own height: a
-  // neighbour only shades it by the part standing above it.
+  // neighbour only shades it by the part standing above it. Computed inside
+  // the analysis so the packed rows and the sun it uses are the same ones
+  // the shading curve sees.
   const roofHeight = site.roofHeightM ?? subject.heightM;
   let blocked: Outcome["blocked"] = null;
-  if (roofHeight !== null && south.rows.length > 0) {
-    const centre: [number, number] = [
-      polygon.reduce((t, p) => t + p[0], 0) / polygon.length,
-      polygon.reduce((t, p) => t + p[1], 0) / polygon.length,
-    ];
-    const { obstructions, unknownHeights, considered } = neighbourObstructions(
-      buildings
-        .filter((b) => b.index !== site.buildingIndex)
-        .map((b) => ({
-          ring: b.polygon,
-          heightM: b.heightM,
-          label: `${num.format(Math.round(b.areaM2))} m² building`,
-        })),
-      roofHeight,
-      400,
-      centre,
-    );
-    const sky = buildSkyEnergy(location, weather, shadingOptions("south"));
-    blocked = {
-      ...obstructionShading(south.rows, obstructions, sky, DEFAULT_PACK.moduleWidthM),
-      unknownHeights,
-      considered,
-      taller: obstructions.length,
-    };
-  }
+  const analysis = analyzeRoof({
+    site: profile,
+    polygon,
+    ppaTerms: { aedPerKwh: 0.21, escalation: 0.02, termYears: 25 },
+    additionalPoaLoss:
+      roofHeight === null
+        ? undefined
+        : ({ rows, weather, solarYear, shadingOptions }) => {
+            if (rows.length === 0) return 0;
+            const centre: [number, number] = [
+              polygon.reduce((t, p) => t + p[0], 0) / polygon.length,
+              polygon.reduce((t, p) => t + p[1], 0) / polygon.length,
+            ];
+            const { obstructions, unknownHeights, considered } = neighbourObstructions(
+              buildings
+                .filter((b) => b.index !== site.buildingIndex)
+                .map((b) => ({
+                  ring: b.polygon,
+                  heightM: b.heightM,
+                  label: `${num.format(Math.round(b.areaM2))} m² building`,
+                })),
+              roofHeight,
+              400,
+              centre,
+            );
+            const sky = buildSkyEnergy(location, weather, shadingOptions, solarYear);
+            blocked = {
+              ...obstructionShading(rows, obstructions, sky, DEFAULT_PACK.moduleWidthM),
+              unknownHeights,
+              considered,
+              taller: obstructions.length,
+            };
+            return blocked.arrayLossOfPoa;
+          },
+  });
+  const result = analysis.plan;
+  const weather = analysis.weather;
 
-  const combine = (a: number, b: number) => 1 - (1 - a) * (1 - b);
-  const curve = (packed: ReturnType<typeof packRoof>, layout: "south" | "east-west") =>
-    shadingCurve(packed.rows, location, weather, shadingOptions(layout)).map((point) => ({
-      fill: point.fill,
-      loss: combine(point.loss, blocked?.arrayLossOfPoa ?? 0),
-    }));
-
-  const override: CapacityOverride = {
-    south: { kwp: south.kwp, moduleCount: south.moduleCount, shadingCurve: curve(south, "south") },
-    "east-west": {
-      kwp: eastWest.kwp,
-      moduleCount: eastWest.moduleCount,
-      shadingCurve: curve(eastWest, "east-west"),
-    },
-  };
-
-  const result = plan(profile, weather, { aedPerKwh: 0.21, escalation: 0.02, termYears: 25 }, override);
   const isEastWest = result.best?.sizing.layout === "east-west";
-  const packed = isEastWest ? eastWest : south;
+  const packed = isEastWest ? analysis.packed["east-west"] : analysis.packed.south;
   const layout = isEastWest ? "east-west" : "south";
   const fill = packed.kwp > 0 ? Math.min(1, (result.best?.sizing.roofSolarKwp ?? 0) / packed.kwp) : 0;
   const rows = thinRows(packed.rows, fill);
-  const shading = rows.length >= 2 ? rowShading(rows, location, weather, shadingOptions(layout)) : null;
-  const shipped = override[layout]?.shadingCurve ?? [];
+  const shading =
+    rows.length >= 2
+      ? rowShading(rows, location, weather, analysis.shadingOptions[layout], analysis.solarYear)
+      : null;
+  const shipped = analysis.override[layout]?.shadingCurve ?? [];
 
   let design: ElectricalDesign | null = null;
   const targetKwp = result.best?.sizing.roofSolarKwp ?? 0;

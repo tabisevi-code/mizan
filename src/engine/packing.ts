@@ -145,8 +145,11 @@ export const shrinkPolygon = (polygon: PolygonM, metres: number): PolygonM => {
   const anticlockwise = signedArea2(polygon) > 0;
   const count = polygon.length;
 
-  // Each edge, slid inward along its own normal.
-  const moved: { at: PointM; dir: PointM }[] = [];
+  // Each edge, slid inward along its own normal. `vertex` records which
+  // original vertex the edge starts at, so the corner between edge i-1 and
+  // edge i can be tested against original vertex i even after degenerate
+  // edges were skipped.
+  const moved: { at: PointM; dir: PointM; vertex: number }[] = [];
   for (let i = 0; i < count; i += 1) {
     const a = polygon[i];
     const b = polygon[(i + 1) % count];
@@ -155,7 +158,7 @@ export const shrinkPolygon = (polygon: PolygonM, metres: number): PolygonM => {
     const dir: PointM = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
     // Inward normal depends on which way the ring winds.
     const normal: PointM = anticlockwise ? [-dir[1], dir[0]] : [dir[1], -dir[0]];
-    moved.push({ at: [a[0] + normal[0] * metres, a[1] + normal[1] * metres], dir });
+    moved.push({ at: [a[0] + normal[0] * metres, a[1] + normal[1] * metres], dir, vertex: i });
   }
   if (moved.length < 3) return [];
 
@@ -176,7 +179,7 @@ export const shrinkPolygon = (polygon: PolygonM, metres: number): PolygonM => {
     const t = (dx * current.dir[1] - dy * current.dir[0]) / cross;
     const corner: PointM = [previous.at[0] + previous.dir[0] * t, previous.at[1] + previous.dir[1] * t];
 
-    const original = polygon[i % polygon.length];
+    const original = polygon[current.vertex];
     const reach = Math.hypot(corner[0] - original[0], corner[1] - original[1]);
     if (reach > metres * MITRE_LIMIT) {
       // Too sharp to mitre: bevel it with the two edge endpoints instead.
@@ -246,10 +249,9 @@ export const packRoof = (
   const keepRatio = 1 - config.obstructionAllowance;
   const rows: PanelRow[] = [];
   let moduleCount = 0;
-  let rowIndex = 0;
   let carried = 0;
 
-  for (let y = bounds.minY; y + depth <= bounds.maxY; y += pitch, rowIndex += 1) {
+  for (let y = bounds.minY; y + depth <= bounds.maxY; y += pitch) {
     carried += keepRatio;
     if (carried < 1) continue;
     carried -= 1;
@@ -301,4 +303,14 @@ export const metresToLngLat = (
   const mPerDegLat = 111320;
   const mPerDegLng = 111320 * Math.cos((origin.lat * Math.PI) / 180);
   return polygon.map(([x, y]) => [origin.lng + x / mPerDegLng, origin.lat + y / mPerDegLat]);
+};
+
+/** Inverse of `metresToLngLat`: a [lng, lat] ring into the local metre frame. */
+export const lngLatToMetres = (
+  ring: [number, number][],
+  origin: { lng: number; lat: number },
+): PolygonM => {
+  const mPerDegLat = 111320;
+  const mPerDegLng = 111320 * Math.cos((origin.lat * Math.PI) / 180);
+  return ring.map(([lng, lat]) => [(lng - origin.lng) * mPerDegLng, (lat - origin.lat) * mPerDegLat]);
 };

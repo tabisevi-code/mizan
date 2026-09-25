@@ -11,20 +11,22 @@
  * tool that shows nothing until they do is a tool nobody sees working.
  */
 
-import { metresToLngLat, packRoof, plantPositions, type PolygonM } from "../engine/packing";
+import { metresToLngLat, plantPositions, type PackResult, type PolygonM } from "../engine/packing";
 import { SECTOR_LABELS } from "../engine/load";
-import { plan, type CapacityOverride, type PlanResult } from "../engine/plan";
+import { analyzeRoof } from "../engine/analyze";
+import { type PlanResult } from "../engine/plan";
+import { buildReport } from "../engine/report";
+import { siteReportPdf } from "./pdf-report";
 import { RULE_SETS, labelEmirate } from "../engine/rules";
 import { DEFAULT_PACK } from "../engine/packing";
 import { DEFAULT_USABLE_AREA } from "../engine/capacity";
 import { DEFAULT_ROOF_TILT_DEG, ENGINE_VALIDATION, DEFAULT_PV_LOSSES, meanSoilingLoss, simulateArray } from "../engine/pv";
-import { CLEARNESS_FIT, modelledWeatherYear, type WeatherYear } from "../engine/solar";
+import { CLEARNESS_FIT, type WeatherYear } from "../engine/solar";
 import {
   buildSkyEnergy,
   neighbourObstructions,
   obstructionShading,
   rowShading,
-  shadingCurve,
   thinRows,
   type ObstructionShading,
   type ShadingResult,
@@ -38,6 +40,7 @@ import jafza from "../data/osm-jafza.json";
 import dic from "../data/osm-dic.json";
 import businessBay from "../data/osm-business-bay.json";
 import { openRenewableExamples, renderRenewables } from "./renewables";
+import { openCustomSiteFlow } from "./custom-site";
 import { solarMonthlyYield } from "../data/uae-monthly-profiles";
 import { RENEWABLE_PORTFOLIOS, type RenewablePortfolio } from "../data/renewable-portfolios";
 import { renderRenewableWorkspace } from "./renewable-workspace";
@@ -383,6 +386,7 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
     byId("register").innerHTML = "";
     byId("register-summary").textContent = "";
     byId("trust").innerHTML = "";
+    byId("report-block").hidden = true;
     return;
   }
   const { result } = outcome;
@@ -394,8 +398,8 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
   const installedSolar = best?.sizing.roofSolarKwp ?? 0;
   const siteYield = installedSolar > 0 && best ? best.simulation.generationKwh / installedSolar : 0;
   renderRenewables(byId("renewable-site"), {
-    id: site.id, name: site.name, where: site.where, location: context.site.location,
-    annualKwh: site.annualKwh, category: "Portfolio screening", solarKw: installedSolar,
+    id: site.id, name: site.name, where: site.where, emirate: site.emirate, location: context.site.location,
+    annualKwh: site.annualKwh, approvedLoadKw: site.approvedLoadKw, category: "Portfolio screening", solarKw: installedSolar,
     solarMonthly: monthlySolar.map(v => modelYield > 0 ? v * siteYield / modelYield : 0),
     windKw: site.sceneId === "jafza" ? 100 : undefined,
     windProfile: site.sceneId === "jafza" ? "jebel-ali" : undefined,
@@ -476,7 +480,13 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
     })
     .join("");
 
-  const modelled = context.weather.source === "modelled-clear-sky";
+  const weatherNote = {
+    "modelled-clear-sky":
+      "This site is using the fitted model rather than a measured year for its exact coordinates: PVGIS refuses requests made straight from a browser, so a measured year arrives only when the local server is running.",
+    "nasa-power-climatology":
+      "This site's weather year is the NASA POWER 20-year climatology at the nearest half-degree grid point, blended with measured monthly irradiation — a typical year, not a metered one.",
+    "pvgis-tmy": "Measured typical year for these coordinates, straight from PVGIS.",
+  }[context.weather.source];
   byId("trust").innerHTML = `
     <div class="callout is-good">
       <b>Checked against PVGIS.</b> The sunlight model is fitted to five-year measurements at
@@ -485,9 +495,7 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
       ${pct(ENGINE_VALIDATION.yieldMeanAbsError)} on average with no bias either way.
     </div>
     <p class="note">
-      ${modelled
-        ? "This site is using the fitted model rather than a measured year for its exact coordinates: PVGIS refuses requests made straight from a browser, so a measured year arrives only when the local server is running."
-        : "Measured typical year for these coordinates, straight from PVGIS."}
+      ${weatherNote}
       No real UAE system's metered output has been compared against this engine, and nothing here claims otherwise.
     </p>
     <p class="note">
@@ -496,6 +504,67 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
       Before money is spent: have the roof structure assessed, pull interval meter data and
       confirm the approved load on the account.
     </p>`;
+
+  byId("report-block").hidden = false;
+  const download = byId<HTMLButtonElement>("report-download");
+  download.onclick = () => downloadReport(site, outcome);
+  byId<HTMLButtonElement>("report-pdf").onclick = () => downloadPdf(site, outcome);
+};
+
+const siteReport = (outcome: Outcome) =>
+  buildReport({
+    site: outcome.profile,
+    result: outcome.result,
+    verdict: { status: outcome.status, headline: outcome.headline, reason: outcome.reason },
+    packedKwp: outcome.packed.kwp,
+    packedModuleCount: outcome.packed.moduleCount,
+    rowShadingLoss: outcome.shading?.electricalArrayLoss ?? null,
+    obstructionLoss: outcome.blocked?.arrayLossOfPoa ?? null,
+    designWarnings: outcome.design?.warnings ?? [],
+  });
+
+const saveFile = (bytes: BlobPart, type: string, name: string) => {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const downloadReport = (site: PortfolioSite, outcome: Outcome) => {
+  const report = siteReport(outcome);
+  saveFile(
+    JSON.stringify(report, null, 2),
+    "application/json",
+    `mizan-report-${site.id}-${report.generatedAt.slice(0, 10)}.json`,
+  );
+};
+
+const downloadPdf = async (site: PortfolioSite, outcome: Outcome) => {
+  const report = siteReport(outcome);
+  const best = outcome.result.best;
+  // Monthly generation for the recommended array: the location's monthly
+  // yield shape scaled to the modelled annual output — same scaling the
+  // on-screen energy-mix panel uses.
+  const monthlyKwh = best
+    ? solarMonthlyYield(report.site.location).map(
+        (perKw) =>
+          (perKw * best.simulation.generationKwh) /
+          Math.max(1, solarMonthlyYield(report.site.location).reduce((a, b) => a + b, 0)),
+      )
+    : null;
+  const bytes = await siteReportPdf({
+    report,
+    monthlyKwh,
+    cashflowCumulativeAed: best ? best.finance.cashflow.map((year) => year.cumulativeAed) : null,
+  });
+  saveFile(
+    bytes.slice().buffer as ArrayBuffer,
+    "application/pdf",
+    `mizan-report-${site.id}-${report.generatedAt.slice(0, 10)}.pdf`,
+  );
 };
 
 // --- sheets -----------------------------------------------------------------
@@ -643,8 +712,9 @@ const switchPortfolio = (id: string) => {
 };
 
 const boot = () => {
-  byId("open-renewables").addEventListener("click", openRenewableExamples);
-  byId("site-renewable-examples").addEventListener("click", openRenewableExamples);
+  byId("open-renewables").addEventListener("click", () => openRenewableExamples());
+  byId("site-renewable-examples").addEventListener("click", () => openRenewableExamples());
+  byId("analyze-own").addEventListener("click", () => openCustomSiteFlow((site) => openRenewableExamples(site.id)));
   byId("renewable-close").addEventListener("click", () => (byId("renewable-dialog") as HTMLDialogElement).close());
   const menu = byId("picker-menu");
   menu.innerHTML = [...RENEWABLE_PORTFOLIOS, ...PORTFOLIOS].map(

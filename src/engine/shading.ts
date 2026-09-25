@@ -36,8 +36,9 @@
  * the same reason.
  */
 
-import { solarPosition, transpose, type WeatherYear } from "./solar";
-import type { PanelRow, PointM, PolygonM } from "./packing";
+import { MONTH_OF_HOUR } from "./calendar";
+import { solarPosition, transpose, type SolarYear, type WeatherYear } from "./solar";
+import { distanceToEdge, pointInPolygon, type PanelRow, type PointM, type PolygonM } from "./packing";
 import { HOURS_PER_YEAR, type LatLng } from "./types";
 
 const DEG = Math.PI / 180;
@@ -78,16 +79,6 @@ export type ShadingResult = {
   edgeShare: number;
   /** Loss by month, fraction of that month's direct irradiance. */
   monthlyLoss: number[];
-};
-
-const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-const monthOfHourIndex = (): Uint8Array => {
-  const out = new Uint8Array(HOURS_PER_YEAR);
-  let hour = 0;
-  for (let month = 0; month < 12; month += 1) {
-    for (let i = 0; i < MONTH_LENGTHS[month] * 24; i += 1, hour += 1) out[hour] = month;
-  }
-  return out;
 };
 
 /**
@@ -134,6 +125,7 @@ export const rowShading = (
   site: LatLng,
   weather: WeatherYear,
   options: ShadingOptions,
+  solarYear?: SolarYear,
 ): ShadingResult => {
   const byModule = rows.map((row) => new Array<number>(row.modules).fill(0));
   const empty: ShadingResult = {
@@ -152,7 +144,8 @@ export const rowShading = (
   const tilt = options.tiltDeg * DEG;
   const depth = options.moduleLengthM * Math.cos(tilt);
   const rise = options.moduleLengthM * Math.sin(tilt);
-  const months = monthOfHourIndex();
+  const months = MONTH_OF_HOUR;
+  const moduleTotal = totalModules(rows);
 
   // Loss accumulates per module as a difference array per row, so one hour
   // costs one add and one subtract per row instead of a pass over every
@@ -169,7 +162,7 @@ export const rowShading = (
   for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
     const ghi = weather.ghi[hour];
     if (ghi <= 0) continue;
-    const sun = solarPosition(site, hour);
+    const sun = solarYear?.position[hour] ?? solarPosition(site, hour);
     if (sun.altitudeDeg <= 0) continue;
     const doy = Math.floor(hour / 24) + 1;
     const poa = transpose(ghi, doy, sun, options.tiltDeg, options.azimuthDeg, options.albedo);
@@ -227,7 +220,7 @@ export const rowShading = (
       const electricalLost = poa.directWm2 * electricalFraction;
       electricalDelta[r][first] += electricalLost;
       electricalDelta[r][last + 1] -= electricalLost;
-      monthLost[month] += (lost * (last - first + 1)) / totalModules(rows);
+      monthLost[month] += (lost * (last - first + 1)) / moduleTotal;
     }
   }
 
@@ -312,10 +305,11 @@ export const shadingCurve = (
   weather: WeatherYear,
   options: ShadingOptions,
   fills = [0.25, 0.5, 0.75, 1],
+  solarYear?: SolarYear,
 ): { fill: number; loss: number }[] =>
   fills.map((fill) => ({
     fill,
-    loss: rowShading(thinRows(rows, fill), site, weather, options).electricalArrayLoss,
+    loss: rowShading(thinRows(rows, fill), site, weather, options, solarYear).electricalArrayLoss,
   }));
 
 // --- shading from things standing above the roof ---------------------------
@@ -366,6 +360,7 @@ export const buildSkyEnergy = (
   site: LatLng,
   weather: WeatherYear,
   options: ShadingOptions,
+  solarYear?: SolarYear,
 ): SkyEnergy => {
   const grid = new Float64Array(AZIMUTH_BINS * (ELEVATION_BINS + 1));
   let total = 0;
@@ -373,7 +368,7 @@ export const buildSkyEnergy = (
   for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
     const ghi = weather.ghi[hour];
     if (ghi <= 0) continue;
-    const sun = solarPosition(site, hour);
+    const sun = solarYear?.position[hour] ?? solarPosition(site, hour);
     if (sun.altitudeDeg <= 0) continue;
     const poa = transpose(
       ghi,
@@ -570,11 +565,7 @@ export const obstructionShading = (
   const culprits = live
     .map((item) => {
       const alone = lossBehind(horizonAt(centre, [item]), sky);
-      let nearest = Infinity;
-      for (const point of item.ring) {
-        const d = Math.hypot(point[0] - centre[0], point[1] - centre[1]);
-        if (d < nearest) nearest = d;
-      }
+      const nearest = distanceToEdge(centre, item.ring);
       return { label: item.label, riseM: item.riseM, nearestM: Math.round(nearest), alone };
     })
     .filter((item) => item.alone > 0.001)
@@ -616,12 +607,10 @@ export const neighbourObstructions = (
   for (const item of neighbours) {
     if (item.ring.length < 2) continue;
     if (centre) {
-      let nearest = Infinity;
-      for (const point of item.ring) {
-        const d = Math.hypot(point[0] - centre[0], point[1] - centre[1]);
-        if (d < nearest) nearest = d;
-      }
-      if (nearest > reachM) continue;
+      // Distance to the nearest EDGE, not vertex: a large footprint can have
+      // all its vertices beyond the reach while a wall passes within metres.
+      // A footprint that encloses the roof counts as within reach too.
+      if (!pointInPolygon(centre, item.ring) && distanceToEdge(centre, item.ring) > reachM) continue;
     }
     considered += 1;
     if (item.heightM === null) {

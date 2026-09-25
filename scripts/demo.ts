@@ -4,7 +4,8 @@
  *   npm run demo
  */
 
-import { plan } from "../src/engine/plan.ts";
+import { analyzeRoof } from "../src/engine/analyze.ts";
+import { lngLatToMetres } from "../src/engine/packing.ts";
 import { RULE_SETS, labelEmirate } from "../src/engine/rules.ts";
 import { SECTOR_LABELS } from "../src/engine/load.ts";
 import type { Ring, SiteProfile } from "../src/engine/types.ts";
@@ -50,7 +51,11 @@ const site: SiteProfile = {
   },
 };
 
-const result = plan(site);
+// The same pipeline the app runs: real rows packed on the outline, shading
+// measured from those rows, the plan built on what actually fits.
+const roofPolygon = site.roofRings?.[0] ? lngLatToMetres(site.roofRings[0], site.location) : [];
+const analysis = analyzeRoof({ site, polygon: roofPolygon });
+const result = analysis.plan;
 const { context, best } = result;
 
 console.log(`\n${site.siteName} — ${labelEmirate(site.emirate)}, ${SECTOR_LABELS[site.sector]}`);
@@ -65,6 +70,11 @@ console.log(
     ` ${num.format(context.roofFit.south.usableAreaM2)} m2 usable ->` +
     ` ${num.format(context.roofFit.south.kwp)} kWp south-facing,` +
     ` ${num.format(context.roofFit["east-west"].kwp)} kWp east-west`,
+);
+console.log(
+  `Packed layout         ${num.format(analysis.packed.south.moduleCount)} modules,` +
+    ` ${num.format(analysis.packed.south.kwp)} kWp south-facing,` +
+    ` ${num.format(analysis.packed["east-west"].kwp)} kWp east-west`,
 );
 console.log(`Regulatory cap        ${num.format(context.cap.capKw)} kW (${context.cap.bindingRule})`);
 console.log(`Scheme                ${RULE_SETS[site.emirate].scheme}`);
@@ -81,7 +91,11 @@ for (const screen of context.screens) {
 }
 
 if (!best) {
-  console.log("\nNo buildable option within the stated constraints.");
+  console.log(
+    result.planUnavailableReason === "no-tariff"
+      ? "\nNo buildable option: no published tariff is modelled for this emirate."
+      : "\nNo buildable option within the stated constraints.",
+  );
 } else {
   console.log("\nRecommended plan");
   console.log("-".repeat(72));

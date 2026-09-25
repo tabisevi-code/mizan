@@ -328,6 +328,22 @@
     #site-list { max-height: 260px; }
     .map-shell { height: 58vh; flex: 0 0 auto; }
   }
+  .rec-card { border: 1px solid var(--line); border-left: 3px solid var(--cool); border-radius: 8px; padding: 14px 16px; margin: 14px 0; background: var(--panel); }
+  .rec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .rec-head b { font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+  .rec-head span { font-size: 11px; color: var(--muted); }
+  .rec-mix { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 12px 0 10px; }
+  .rec-source b, .rec-nums b { display: block; font: 500 14px var(--mono); margin-top: 4px; }
+  .rec-source, .rec-nums { border-top: 2px solid var(--cool); padding-top: 6px; }
+  .rec-source span, .rec-nums span { font-size: 10px; color: var(--muted); }
+  .rec-apply { font: 600 12px var(--sans); padding: 7px 14px; border: 0; border-radius: 6px; background: var(--sun); color: #1a1205; cursor: pointer; transition: filter .15s; }
+  .rec-apply:hover { filter: brightness(1.1); }
+  .rec-legal { margin: 2px 0; }
+  .rec-legal b { display: inline-block; width: 14px; font-family: var(--mono); }
+  .rec-legal .is-eligible { color: var(--good); }
+  .rec-legal .is-evidence { color: var(--warn); }
+  .rec-legal .is-blocked { color: var(--stop); }
+  .rec-rejected { color: var(--muted); }
   .energy-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
   .energy-toggle { border: 1px solid var(--line-strong); border-radius: 6px; padding: 7px 9px; font-size: 12px; }
   .energy-toggle[aria-pressed="true"] { background: var(--cool-soft); border-color: var(--cool); color: var(--ink); }
@@ -364,8 +380,40 @@
   #renewable-site h4, #renewable-examples h4 { margin: 18px 0 8px; }
   #renewable-site summary, #renewable-examples summary { cursor: pointer; margin: 12px 0; color: var(--ink-dim); }
   #renewable-site a, #renewable-examples a { color: var(--cool); }
-  #renewable-dialog { color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; padding: 0; width: min(820px, calc(100% - 24px)); max-height: 90dvh; }
-  #renewable-dialog::backdrop { background: #000b; }
+  #renewable-dialog, #site-dialog { color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; padding: 0; width: min(820px, calc(100% - 24px)); max-height: 90dvh; }
+  #renewable-dialog::backdrop, #site-dialog::backdrop { background: #000b; }
+  #site-dialog-body { padding: 22px; }
+  .rail-analyze { padding: 8px 10px; border-top: 1px solid var(--line); }
+  #analyze-own { width: 100%; font: 600 12.5px var(--sans); padding: 9px 12px; border: 1px dashed var(--line-strong); border-radius: 7px; background: transparent; color: var(--cool); cursor: pointer; }
+  #analyze-own:hover { background: var(--cool-soft); border-color: var(--cool); }
+  .cs-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 14px 0; }
+  .cs-choice { display: block; text-align: left; padding: 14px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--panel-2); color: var(--ink); cursor: pointer; font-family: var(--sans); transition: border-color .15s; }
+  .cs-choice:hover { border-color: var(--cool); }
+  .cs-choice b { display: block; font-size: 13.5px; }
+  .cs-choice span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+  .cs-upload { position: relative; }
+  .cs-privacy { font-size: 11px; }
+  .cs-progress { list-style: none; padding: 0; }
+  .cs-progress li { padding: 7px 0 7px 22px; position: relative; font-size: 12.5px; color: var(--ink-dim); }
+  .cs-progress li::before { content: ""; position: absolute; left: 2px; top: 12px; width: 7px; height: 7px; border-radius: 50%; background: var(--cool); }
+  .cs-fields { display: grid; gap: 10px; margin: 14px 0; }
+  .cs-field { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .cs-field.is-check { border-color: var(--warn); }
+  .cs-field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .cs-label { font-size: 12px; font-weight: 600; }
+  .cs-field input, .cs-field select { width: 100%; font: 12.5px var(--sans); padding: 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--panel-2); color: var(--ink); }
+  .cs-chip { font-size: 10px; font-weight: 600; letter-spacing: .03em; padding: 3px 8px; border-radius: 99px; }
+  .cs-chip.is-found { background: var(--good-soft); color: var(--good); }
+  .cs-chip.is-check { background: var(--warn-soft); color: var(--warn); }
+  .cs-chip.is-none { background: var(--panel-2); color: var(--muted); }
+  .cs-src { font-size: 10.5px; color: var(--faint); margin-top: 4px; }
+  .cs-conflict { margin-top: 6px; font-size: 11.5px; color: var(--warn); }
+  .cs-conflict label { display: block; margin-top: 4px; font-weight: normal; color: var(--ink-dim); }
+  .cs-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+  .cs-back { font: 600 12px var(--sans); padding: 8px 14px; border: 1px solid var(--line-strong); border-radius: 6px; background: transparent; color: var(--ink-dim); cursor: pointer; transition: color .15s, border-color .15s; }
+  .cs-back:hover { color: var(--ink); border-color: var(--cool); }
+  .cs-confirm { font: 600 12.5px var(--sans); padding: 9px 16px; border: 0; border-radius: 6px; background: var(--sun); color: #1a1205; cursor: pointer; transition: filter .15s; }
+  .cs-confirm:hover { filter: brightness(1.1); }
   #renewable-examples { padding: 22px; }
   .renewable-link { margin-top: 12px; color: var(--cool); border: 1px solid var(--line-strong); border-radius: 5px; padding: 8px 10px; }
   .renewable-section > summary { cursor: pointer; color: var(--cool); font-weight: 600; }
@@ -408,6 +456,9 @@
         </div>
       </div>
       <ol id="site-list"></ol>
+      <div class="rail-analyze">
+        <button type="button" id="analyze-own">+ Analyze your own site</button>
+      </div>
       <div class="rail-foot">
         <span id="rail-evidence-note">Every site below is a real building outline from OpenStreetMap. Consumption
         and account figures are typical for the sector.</span>
@@ -462,7 +513,7 @@
       <div class="block"><div class="kpis" id="kpis"></div></div>
       <div class="block">
         <details class="renewable-section"><summary><b>Explore this site’s energy mix</b></summary><div id="renewable-site"></div></details>
-        <button type="button" class="renewable-link" id="site-renewable-examples">Explore 12 UAE solar, wind &amp; hydro examples ↗</button>
+        <button type="button" class="renewable-link" id="site-renewable-examples">Explore 15 UAE solar, wind &amp; hydro examples ↗</button>
       </div>
       <div class="block" id="working-block">
         <h3>How each number was reached</h3>
@@ -482,9 +533,20 @@
         <h3>How far this can be trusted</h3>
         <div id="trust"></div>
       </div>
+      <div class="block" id="report-block" hidden>
+        <h3>Act on it</h3>
+        <p class="note">A structured report — the recommendation, the options ranked behind it, the uncertainty band, and the steps to take in order, each with the benefit it brings. JSON, so it can feed a work order or a board paper rather than be read once and forgotten.</p>
+        <button type="button" class="renewable-link" id="report-download">Download site report (JSON) ↓</button>
+        <button type="button" class="renewable-link" id="report-pdf">Download report as PDF ↓</button>
+      </div>
     </aside>
   </div>
 </div>
+
+<dialog id="site-dialog" aria-labelledby="site-dialog-title">
+  <div class="sheet-head"><div><h2 id="site-dialog-title">Analyze your own site</h2><p>Upload a document or enter the details — every value is reviewed by you before analysis.</p></div><button type="button" class="sheet-close" id="site-dialog-close" aria-label="Close">×</button></div>
+  <div id="site-dialog-body"></div>
+</dialog>
 
 <dialog id="renewable-dialog" aria-labelledby="renewable-title">
   <div class="sheet-head"><div><h2 id="renewable-title">UAE energy mixes</h2><p>Solar only, combined sources and wind only — with explicit evidence and assumptions.</p></div><button type="button" class="sheet-close" id="renewable-close" aria-label="Close energy examples">×</button></div>
