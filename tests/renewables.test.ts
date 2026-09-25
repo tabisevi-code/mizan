@@ -103,7 +103,7 @@ test("rejects invalid input instead of silently using another UAE location", () 
 });
 
 test("all UAE examples conserve energy; comparisons use independent scenarios", () => {
-  assert.equal(new Set(UAE_RENEWABLE_CASES.map(s => s.id)).size, 12);
+  assert.equal(new Set(UAE_RENEWABLE_CASES.map(s => s.id)).size, 15);
   for (const site of UAE_RENEWABLE_CASES) {
     const systems = systemsForCase(site);
     const r = analyzeRenewableCombination(site.name, systems, site.annualKwh);

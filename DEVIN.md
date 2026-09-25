@@ -179,7 +179,10 @@ Dependencies are TypeScript, Vite, `tsx`, and Node type definitions. There is no
 | `src/web/tiles.ts` | Esri/OSM tile placement, source attribution, load/error/retry UI |
 | `src/web/project-map.ts` | New mapped-project view; auto-fit geometry, named building outlines, turbine/company symbols, reservoir polygon, links to OSM records |
 | `src/web/renewable-workspace.ts` | Main rail/map/KPI/panel renderer for the newer renewable portfolios; routes published projects separately |
-| `src/web/renewables.ts` | Monthly energy-mix controls, charts/tables, financial comparison, per-site session state, 12-example modal |
+| `src/web/renewables.ts` | Monthly energy-mix controls, charts/tables, financial comparison, recommendation card, per-site session state, 15-example modal (`openRenewableExamples(siteId?)`) |
+| `src/web/custom-site.ts` | "+ Analyze your own site" dialog: manual entry or multi-file upload (PDF via lazily imported pdf.js, TXT/CSV/MD), extraction review with statuses and conflicts, explicit confirm; the confirmed `RenewableCase` is appended to the examples and opened in `renewables.ts`. Default tariff from `engine/tariff.ts`; location approximated from the emirate's climate points and labelled as such |
+| `src/web/site-compute.ts` / `engine.worker.ts` | Worker-backed per-site planning through `analyzeRoof`, with a synchronous fallback |
+| `src/web/format.ts` | Shared number formatting and the single HTML `esc()` helper |
 | `src/web/published-energy.ts` | Published data display and interactive wind/biogas/solar generation or storage-cycle scenarios |
 | `src/web/tour.ts` | Guided-tour/focus state helpers; not initialized by the current main UI |
 
@@ -197,8 +200,14 @@ Do not describe tour code as user-facing features merely because a file exists. 
 | `electrical.ts` | Module/inverter catalog, temperature-dependent string sizing, wire paths, inverter allocation, cable bill of materials |
 | `shading.ts` | Row shadows, bypass-diode effects, capacity-dependent shading curves, neighboring-building skyline losses |
 | `load.ts` | Sector hourly load patterns, seasonal cooling adjustment, scaling to annual or monthly consumption |
-| `tariff.ts` | DEWA/ADDC tariff selection, marginal rates, annual bill calculation |
-| `rules.ts` | Per-emirate scheme assumptions, PV caps, structural screening, evidence-based technology screens |
+| `tariff.ts` | Tariff selection for all seven emirates (DEWA, ADDC/AADC, SEWA, EtihadWE), marginal rates, annual bill calculation |
+| `rules.ts` | Per-emirate rule sets, the single regulatory-cap formula (`regulatoryCapFor`: DRRG slabs, EtihadWE 10 %/1 MW, plot caps), `SCREEN_THRESHOLDS`, `modelledWind`, evidence-based technology screens |
+| `resource.ts` | Baked NASA POWER climatology grid, measured-GHI blending, soiling curve, wind shear + Rayleigh CF fallback |
+| `wind.ts` / `wind-sites.ts` | Global Wind Atlas + ERA5 wind model (monthly Weibull, air density, turbine curves) and the 27 UAE climate points it runs at (`data/wind-uae.json`) |
+| `recommend.ts` | Explainable solar × turbine mix search for the energy-mix examples and custom sites; legal items per emirate, ruled-out reasons, evidence still needed. Not a second planner: caps come from `regulatoryCapFor` |
+| `extract.ts` | Deterministic field extraction from document text (name, address, emirate, kWh, approved load, roof) with found / needs-confirmation / not-found status and cross-document conflicts; the layer behind the upload UI |
+| `intake.ts` | Engine-side bill proposal for `SiteProfile` (`extractBill` → `applyBillProposal`), guided questionnaire, enrichment. Tested, not yet wired to a UI |
+| `analyze.ts` / `calendar.ts` / `report.ts` | `analyzeRoof` facade over the full pipeline; shared month/day/hour helpers; structured `SiteReport` + jsPDF export |
 | `battery.ts` | Hourly solar-surplus battery dispatch with losses and optional peak-window holdback |
 | `finance.ts` | Capex, yearly cashflows, payback, NPV, IRR, LCOE, ownership/PPA comparison, avoided CO₂ |
 | `uncertainty.ts` | Seeded Monte Carlo and one-factor sensitivity |
@@ -206,6 +215,8 @@ Do not describe tour code as user-facing features merely because a file exists. 
 | `renewable-combinations.ts` | Separate monthly multi-source calculation and simple financial model |
 | `published-energy.ts` | Small pure helpers for capacity-factor output and storage-cycle energy accounting |
 | `index.ts` | Barrel exports for most legacy modules and renewable combinations; not every module is re-exported |
+
+See `docs/INTEGRATION.md` for how the three prior versions were combined and what was dropped.
 
 ### Connectors
 

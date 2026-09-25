@@ -4,9 +4,9 @@ import { renderPublishedEnergy } from "./published-energy";
 import { SOURCE_LABELS } from "../data/uae-monthly-profiles";
 import { basemapCredit, tileLayer, type Basemap } from "./tiles";
 import { renderRenewables, renewableAnalysisFor } from "./renewables";
+import { esc } from "./format";
 
 const el = (id: string) => document.getElementById(id)!;
-const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const num = (n: number) => new Intl.NumberFormat("en-AE", { maximumFractionDigits: 1 }).format(n);
 const money = (n: number) => `AED ${num(Math.round(n))}`;
 

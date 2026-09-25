@@ -28,6 +28,7 @@
     "vite": "^5.4.11"
   },
   "dependencies": {
-    "jspdf": "^4.2.1"
+    "jspdf": "^4.2.1",
+    "pdfjs-dist": "^5.4.624"
   }
 }

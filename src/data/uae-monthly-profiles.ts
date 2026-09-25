@@ -11,20 +11,18 @@ export type { RenewableSource };
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export const SOURCE_LABELS: Record<RenewableSource, string> = { solar: "Solar", wind: "Wind", hydro: "Micro-hydro", geothermal: "Geothermal" };
 
-/** Sensitivity assumptions, NOT measured wind resources or MERRA-2 data.
- * No seasonal complementarity is asserted without a measured time series. */
-export const WIND_CAPACITY_FACTORS: Record<string, number[]> = {
-  "jebel-ali": Array(12).fill(0.11),
-  ruwais: Array(12).fill(0.14),
-  fujairah: Array(12).fill(0.13),
-  khorfakkan: Array(12).fill(0.13),
-  "ras-al-khaimah": Array(12).fill(0.15),
-  "jebel-jais": Array(12).fill(0.20),
-  "sir-bani-yas": Array(12).fill(0.20),
-  delma: Array(12).fill(0.20),
-  sila: Array(12).fill(0.20),
-  "al-halah": Array(12).fill(0.18),
-};
+import { windYield } from "../engine/wind";
+
+/**
+ * kWh per installed kW of wind per month at a configured climate site.
+ *
+ * Replaces the old flat regional capacity factors with the physical model:
+ * Global Wind Atlas level, ERA5 monthly shape and density, turbine power
+ * curve. Still a model, not a met mast — the provenance lives in wind-uae.json.
+ */
+export function windMonthlyKwhPerKw(siteId: string, turbineId = "mid-900", turbineCount = 1): number[] {
+  return windYield(siteId, turbineId, { turbineCount }).monthlyKwhPerKw;
+}
 
 const solarCache = new Map<string, number[]>();
 /** kWh per installed kWp per month, with existing UAE heat/dust/loss model. */
@@ -42,11 +40,11 @@ export function solarMonthlyYield(location: LatLng): number[] {
 }
 
 /** Normalized energy shares; unknown locations are errors, never coastal defaults. */
-export function getMonthlyProfile(source: RenewableSource, location: string): number[] {
-  if (source !== "wind" || !WIND_CAPACITY_FACTORS[location]) {
+export function getMonthlyProfile(source: RenewableSource, location: string, turbineId = "mid-900"): number[] {
+  if (source !== "wind") {
     throw new Error(`No published or assumed profile configured for ${source} at ${location}`);
   }
-  const energy = WIND_CAPACITY_FACTORS[location].map((cf, m) => cf * MONTH_HOURS[m]);
+  const energy = windMonthlyKwhPerKw(location, turbineId);
   const total = energy.reduce((a, b) => a + b, 0);
   return energy.map(v => v / total);
 }

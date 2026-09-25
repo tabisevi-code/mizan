@@ -143,3 +143,56 @@ so they can be imported subsystem by subsystem.
 4. A wind model + data + examples → energy-mix path, provenance.
 5. A extract + custom-site + recommend → restyle, wire to B intake/rules.
 6. Dedup, docs, hygiene, regression tests, E2E + adversarial via testing agent.
+
+## Outcome (written after the merge)
+
+What landed on `final-integration`, against the plan above:
+
+- **C** imported whole (commit `7dfc981`): calendar, `SolarYear` cache,
+  `analyzeRoof` facade, structured report + jsPDF export, the six correctness
+  fixes, half-rung refinement, `planUnavailableReason`. `analyzeRoof` was
+  changed to source its weather year through B's `weatherOrModelled`, so the
+  UI plans against the NASA POWER climatology rather than C's clear-sky year
+  (regression test in `tests/improvements.test.ts`). `report.ts` learned that
+  Dubai's binding constraint is `tcl-slab`, not `approved-load`. Three of C's
+  tests encoded pre-B assumptions (Sharjah has no tariff; Dubai caps at the
+  flat approved load) and were rewritten to the verified model.
+- **A** imported selectively: `engine/extract.ts`, `web/custom-site.ts`,
+  `engine/recommend.ts`, `engine/wind.ts` + `engine/wind-sites.ts` (moved out
+  of `data/` because it is logic, not data) + `data/wind-uae.json`, the 15
+  energy-mix examples, the demo PDF, `DEMO.md`, `SOURCES.md`, the UI-testing
+  skill. `rules.ts` kept B's table-driven DRRG and gained A's
+  `approvedLoadFraction` (EtihadWE 10 % / 1 MW, `confidence: "partial"` with
+  the press-coverage caveat) and `nonSolarScheme`.
+- **One cap formula.** `regulatoryCapFor(emirate, approvedLoadKw)` is the
+  single implementation; `regulatoryCap(site)` and `recommendMix` both call it.
+  A's `dubaiTclContributionKw` is gone.
+- **Two wind datasets, one screen.** `modelledWind(site)` in `rules.ts` uses
+  the Atlas/ERA5 point within 40 km, else the NASA 50 m grid, and labels which.
+  The technology screen now returns `not-viable` (CF < 12 %) or
+  `needs-evidence` with the dataset in provenance instead of a generic
+  "no measurement supplied" — it never returns `eligible` from a model.
+- **Custom site.** The confirmed site's default tariff comes from B's
+  `selectTariff`/`marginalRate` for the emirate (was a hard-coded 0.30), and
+  its solar ceiling from the shared cap. It still runs the energy-mix
+  recommender, not the roof planner: without a roof polygon there is nothing
+  to pack or shade, so plan item 6's full `SiteProfile` adapter (register,
+  P50/P90) is **not done** and is the first follow-up.
+- **Two text parsers remain, separated on purpose.** `extract.ts` is the
+  document layer behind the upload UI (multi-field, statuses, conflicts).
+  `intake.ts` is B's engine-side bill proposal for `SiteProfile`
+  (`extractBill` → `applyBillProposal`) plus the guided questionnaire and
+  enrichment; it is tested but has no UI yet. Folding one into the other
+  (plan item 5) was deferred rather than risk either's tests.
+- **Single-file page grew** from ~1.2 MB to ~3.4 MB because Vite's lib build
+  inlines the pdf.js worker as a data URL. That is what makes PDF upload work
+  offline from `dist/local.html`; the degrade-on-failure path (plan item 7)
+  exists (`custom-site.ts` catches the import and offers TXT/CSV or manual
+  entry) but the inlining means it should rarely trigger.
+- **Dropped:** `DEVIN_DEMO_NOTES.md` (A's video-evidence narrative; its facts
+  are in `SOURCES.md` and here), `pnpm-lock.yaml`/`pnpm-workspace.yaml`,
+  the four drifted `esc()` copies (now `web/format.ts`).
+- **Tests:** 128 (97 B + 19 C + 1 facade weather + 11 seam tests in
+  `tests/integration.test.ts`: shared cap, EtihadWE, recommender ≤ cap, wind
+  model sanity and dataset selection, model-never-eligible, extractor found /
+  needs-confirmation / not-found / conflict).

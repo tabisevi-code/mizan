@@ -22,4 +22,4 @@ export const kwh = (value: number): string => {
 export const pct = (value: number, places = 1) => `${(value * 100).toFixed(places)}%`;
 
 export const esc = (text: string) =>
-  text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

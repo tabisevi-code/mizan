@@ -15,7 +15,7 @@ export const MAPPED_ENERGY_PROJECTS: RenewablePortfolio = {
   sites: [
     { ...PUBLISHED_WAREHOUSES.sites[0], id: "mapped-aramex" },
     {
-      id: "mapped-rawabi", name: "Al Rawabi · solar + biogas", where: "Al Khawaneej, Dubai", location: { lat: 25.2170472, lng: 55.5290987 },
+      id: "mapped-rawabi", name: "Al Rawabi · solar + biogas", where: "Al Khawaneej, Dubai", emirate: "dubai", location: { lat: 25.2170472, lng: 55.5290987 },
       category: "Published solar + biogas CHP", solarKw: 1000, annualKwh: 0, approvedLoadKw: null, defaultSources: ["solar"], sourceUrl: rawabiSource,
       description: "Al Rawabi reports a 1 MW solar installation and a 1.3 MW biogas plant established in 2021. These are company-reported capacities, not annual production measurements.",
       mapGeometry: rawabi,
@@ -33,7 +33,7 @@ export const MAPPED_ENERGY_PROJECTS: RenewablePortfolio = {
       ],
     },
     {
-      id: "mapped-halah", name: "Masdar · Al Halah wind", where: "Al Halah, Fujairah", location: { lat: 25.4975118, lng: 56.1519331 },
+      id: "mapped-halah", name: "Masdar · Al Halah wind", where: "Al Halah, Fujairah", emirate: "fujairah", location: { lat: 25.4975118, lng: 56.1519331 },
       category: "Published wind installation", solarKw: 0, annualKwh: 0, approvedLoadKw: null, defaultSources: [], sourceUrl: UAE_WIND_SOURCE,
       description: "Masdar's October 2023 UAE Wind Program announcement identifies 4.5 MW at Al Halah. The mapped turbine is tagged with the same operator and capacity.",
       mapGeometry: halah, mapNote: "OpenStreetMap turbine point, tagged Masdar and 4.5 MW. The symbol marks the mapped turbine location; it does not represent a building or a surveyed rotor footprint.",
@@ -46,7 +46,7 @@ export const MAPPED_ENERGY_PROJECTS: RenewablePortfolio = {
       ],
     },
     {
-      id: "mapped-hatta", name: "DEWA · Hatta pumped storage", where: "Hatta, Dubai", location: { lat: 24.78, lng: 56.1149 },
+      id: "mapped-hatta", name: "DEWA · Hatta pumped storage", where: "Hatta, Dubai", emirate: "dubai", location: { lat: 24.78, lng: 56.1149 },
       category: "Hydroelectric storage · not new generation", solarKw: 0, annualKwh: 0, approvedLoadKw: null, defaultSources: [], sourceUrl: hattaSource,
       description: "DEWA publishes 250 MW discharge power, 1,500 MWh storage and 78.9% round-trip efficiency. Pumping consumes electricity; this installation shifts energy rather than creating a new renewable energy supply.",
       mapGeometry: hatta, mapNote: "Mapped shoreline of Hatta's lower reservoir. This outline is a water body, not the upper reservoir, underground powerhouse or full project boundary. Reservoir levels and shoreline can change.",
