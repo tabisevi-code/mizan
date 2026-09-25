@@ -1533,3 +1533,93 @@ test("an unreachable energy target names the constraint and the shortfall", asyn
   assert.ok(modest.targetOption, "expected a meeting option");
   assert.ok(modest.targetOption!.simulation.selfConsumedKwh >= 0.05 * 5_000_000);
 });
+
+test("bill intake proposes fields and applies only confirmed ones", async () => {
+  const { extractBill, applyBillProposal } = await import("../src/engine/intake.ts");
+  const bill = [
+    "DEWA — Dubai Electricity and Water Authority",
+    "Commercial account statement",
+    "Total Approved Load    1,200 kW",
+    "JAN-25   380,000 kWh",
+    "FEB-25   350,000 kWh",
+    "MAR-25   410,000 kWh",
+    "APR-25   450,000 kWh",
+    "MAY-25   520,000 kWh",
+    "JUN-25   560,000 kWh",
+    "JUL-25   610,000 kWh",
+    "AUG-25   600,000 kWh",
+    "SEP-25   540,000 kWh",
+    "OCT-25   470,000 kWh",
+    "NOV-25   400,000 kWh",
+    "DEC-25   390,000 kWh",
+  ].join("\n");
+  const proposal = extractBill(bill);
+  assert.equal(proposal.utility, "dewa");
+  const monthly = proposal.fields.find((f) => f.key === "monthlyKwh");
+  assert.ok(monthly, "expected a monthly consumption proposal");
+  assert.equal(monthly!.monthlyKwh!.length, 12);
+  assert.equal(monthly!.annualKwh, 5_680_000);
+  assert.ok(proposal.fields.some((f) => f.key === "approvedLoadKw" && f.approvedLoadKw === 1200));
+  assert.ok(proposal.fields.some((f) => f.key === "emirate" && f.emirate === "dubai"));
+
+  // Nothing lands unconfirmed.
+  const site = makeSite();
+  const untouched = applyBillProposal(site, proposal, []);
+  assert.equal(untouched.annualKwh, site.annualKwh);
+  assert.equal(untouched.monthlyKwh, undefined);
+
+  const applied = applyBillProposal(site, proposal, ["monthlyKwh", "approvedLoadKw"]);
+  assert.equal(applied.annualKwh, 5_680_000);
+  assert.equal(applied.approvedLoadKw, 1200);
+  assert.equal(applied.evidence.hasIntervalMeterData, true);
+  assert.equal(applied.emirate, site.emirate); // emirate not confirmed
+});
+
+test("a partial year of bills is noted, not proposed", async () => {
+  const { extractBill } = await import("../src/engine/intake.ts");
+  const bill = "EtihadWE bill\nJAN 12,000 kWh\nFEB 11,000 kWh\nTotal Approved Load 800 kW";
+  const proposal = extractBill(bill);
+  assert.equal(proposal.utility, "etihadwe");
+  assert.ok(!proposal.fields.some((f) => f.key === "monthlyKwh"));
+  assert.ok(proposal.notes.length >= 1);
+});
+
+test("the assumption register lists every input with provenance", async () => {
+  const { plan } = await import("../src/engine/plan.ts");
+  const { assumptionRegister, registerSummary } = await import("../src/engine/register.ts");
+  const result = plan(makeSite());
+  const register = assumptionRegister(result);
+  assert.ok(register.length >= 7);
+  assert.ok(register.every((entry) => entry.provenance.kind === entry.kind));
+  const inputs = register.map((entry) => entry.input);
+  assert.ok(inputs.includes("Installed cost"));
+  assert.ok(inputs.includes("Utility tariff"));
+  assert.ok(inputs.some((i) => i === "Regulatory cap and scheme rules"));
+  // Facts sort before assumptions.
+  const kinds = register.map((entry) => entry.kind);
+  const firstAssumption = kinds.indexOf("assumption");
+  assert.ok(kinds.slice(0, firstAssumption).every((k) => k !== "assumption"));
+  assert.ok(registerSummary(register).length > 10);
+});
+
+test("corporate tax scales net savings when set", async () => {
+  const { evaluateFinance } = await import("../src/engine/finance.ts");
+  const base = evaluateFinance({
+    capexAed: 1_000_000,
+    batteryCapexAed: 0,
+    installedKw: 500,
+    firstYearSavingsAed: 200_000,
+    firstYearGenerationKwh: 800_000,
+  });
+  const taxed = evaluateFinance({
+    capexAed: 1_000_000,
+    batteryCapexAed: 0,
+    installedKw: 500,
+    firstYearSavingsAed: 200_000,
+    firstYearGenerationKwh: 800_000,
+    assumptions: { corporateTaxRate: 0.09 },
+  });
+  assert.ok(taxed.npvAed < base.npvAed);
+  // Year-1 net: (200,000 - 500*55) * 0.91 = 156,975
+  assert.ok(Math.abs(taxed.cashflow[0].netAed - 156_975) < 1);
+});

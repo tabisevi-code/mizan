@@ -41,6 +41,7 @@ import { solarMonthlyYield } from "../data/uae-monthly-profiles";
 import { RENEWABLE_PORTFOLIOS, type RenewablePortfolio } from "../data/renewable-portfolios";
 import { renderRenewableWorkspace } from "./renewable-workspace";
 import { computeSite, latLngOfSite, type Outcome } from "./site-compute";
+import { assumptionRegister, registerSummary } from "../engine/register";
 import EngineWorker from "./engine.worker.ts?worker&inline";
 
 // --- formatting -------------------------------------------------------------
@@ -349,6 +350,8 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
     byId("kpis").innerHTML = "";
     byId("working").innerHTML = "";
     byId("inputs").innerHTML = "";
+    byId("register").innerHTML = "";
+    byId("register-summary").textContent = "";
     byId("trust").innerHTML = "";
     return;
   }
@@ -413,6 +416,35 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
   for (const button of byId("inputs").querySelectorAll<HTMLButtonElement>("[data-term]")) {
     button.addEventListener("click", () => openTerm(button.dataset.term!));
   }
+
+  const register = assumptionRegister(outcome.result);
+  byId("register-summary").textContent = registerSummary(register);
+  byId("register").innerHTML = register
+    .map((entry) => {
+      const chip =
+        entry.kind === "authority"
+          ? "is-authority"
+          : entry.kind === "assumption" || entry.kind === "model"
+            ? "is-assumed"
+            : "is-measured";
+      const detail = [
+        entry.provenance.label,
+        entry.provenance.asOf ? `as of ${entry.provenance.asOf}` : null,
+        entry.provenance.caveat,
+        entry.swingAed ? `moves NPV by up to ${aed(entry.swingAed)}` : null,
+        entry.howToResolve,
+      ]
+        .filter(Boolean)
+        .join(" — ");
+      return `<div class="fact-row">
+        <div>
+          <div class="fact-label">${esc(entry.input)}</div>
+          <div class="fact-src"><span class="chip ${chip}">${esc(entry.kind)}</span> ${esc(detail)}</div>
+        </div>
+        <div class="fact-value" style="white-space:normal;text-align:right">${esc(entry.value)}</div>
+      </div>`;
+    })
+    .join("");
 
   const modelled = context.weather.source === "modelled-clear-sky";
   byId("trust").innerHTML = `
