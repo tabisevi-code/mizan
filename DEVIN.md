@@ -181,10 +181,9 @@ Dependencies are TypeScript, Vite, `tsx`, and Node type definitions. There is no
 | `src/web/renewable-workspace.ts` | Main rail/map/KPI/panel renderer for the newer renewable portfolios; routes published projects separately |
 | `src/web/renewables.ts` | Monthly energy-mix controls, charts/tables, financial comparison, per-site session state, 12-example modal |
 | `src/web/published-energy.ts` | Published data display and interactive wind/biogas/solar generation or storage-cycle scenarios |
-| `src/web/live.ts` | Address search and live scene construction helpers; not wired into the current main UI |
 | `src/web/tour.ts` | Guided-tour/focus state helpers; not initialized by the current main UI |
 
-Do not describe live lookups or tour code as user-facing features merely because a file exists. Verify callers before claiming integration.
+Do not describe tour code as user-facing features merely because a file exists. Verify callers before claiming integration.
 
 ### Engine modules
 
@@ -774,8 +773,6 @@ Both Vite development config and `serve.mjs` provide:
 
 PVGIS connector rotates UTC hourly data by four hours into UAE local time, requires at least 8,760 rows, and serializes snapshots with date/source information. Its browser requests use the local proxy; Node requests go directly to JRC.
 
-The two OSM code paths differ: `connectors/overpass.ts` is proxy-aware, while `web/live.ts` currently requests public Nominatim/Overpass directly. Consolidate these if live search is activated.
-
 No API keys or secrets are required for the present application.
 
 ## 13. Known gaps, inconsistencies, and review targets
@@ -787,7 +784,7 @@ These are important handoff findings. They are not all regressions introduced in
 1. **Live search/TMY is not integrated.** README and some trust copy imply a local server makes measured weather arrive automatically. `main.ts` does not call the connectors and always creates modeled weather. Either wire the flow or correct those claims.
 2. **Tour helpers are not main-UI features.** `tour.ts` exists but is not imported by the current main controller.
 3. **Bake output is not consumed.** `scripts/bake.ts` writes `snapshots.json`; that file is not part of the inspected app imports. Baking alone does not alter default cases or weather.
-4. **Overpass parser field mismatch.** `connectors/overpass.ts` expects `element.geom`; normal `out geom` Overpass JSON uses `geometry`, as the separate `web/live.ts` implementation expects. This likely explains empty parsed footprints on that connector path; add a recorded-response test before enabling it.
+4. **Overpass connector is untested against live responses.** `connectors/overpass.ts` parses `element.geometry` from `out geom` JSON and has a unit test over a recorded-shape fixture, but has not been exercised end-to-end from the UI.
 5. **README/guide counts and default names drifted.** Current default is mapped projects, main picker has nine portfolios, tests total 83, and bundled legacy scenes hold 101 buildings. Older references to 63/67 tests, other defaults or larger searched building totals should not be treated as current inventory.
 6. **Package manager setup is not standardized.** Resolve the placeholder pnpm build setting and choose an intentional lockfile workflow before relying on reproducible clean installs.
 
