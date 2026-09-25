@@ -7,6 +7,7 @@ import { buildCapex, evaluateFinance, solarCostPerKw } from "../src/engine/finan
 import { buildLoadProfile } from "../src/engine/load.ts";
 import { plan } from "../src/engine/plan.ts";
 import { DEFAULT_PV_LOSSES, simulateArray } from "../src/engine/pv.ts";
+import { HYDRO_TURBINE_EFFICIENCY } from "../src/engine/renewable-combinations.ts";
 import { RULE_SETS, regulatoryCap, screenTechnologies } from "../src/engine/rules.ts";
 import { clearSkyGhi, declination, modelledWeatherYear, solarPosition } from "../src/engine/solar.ts";
 import { annualBill, marginalRate, selectTariff, TARIFFS } from "../src/engine/tariff.ts";
@@ -256,6 +257,14 @@ test("marine and geothermal options screen out with a reason, not a slider", () 
     assert.equal(screen.status, "not-viable");
     assert.ok(screen.reason.length > 30, `${id} needs a real reason`);
   }
+});
+
+test("hydro screening uses the same turbine efficiency as the yield model", () => {
+  const site = makeSite({ evidence: { ...emptyEvidence, hydro: { flowCms: 1, headM: 10 } } });
+  const hydro = screenTechnologies(site, 20000, 0).find((item) => item.id === "hydro")!;
+  assert.equal(hydro.status, "needs-evidence");
+  assert.match(hydro.reason, /roughly 64 kW/);
+  assert.equal(Math.round(9.81 * 1 * 10 * HYDRO_TURBINE_EFFICIENCY), 64);
 });
 
 // --- dispatch --------------------------------------------------------------
