@@ -55,18 +55,18 @@ export const fetchBuildings = async (
   });
   if (!response.ok) throw new Error(`Overpass returned ${response.status}`);
   const payload = (await response.json()) as {
-    elements: { id: number; geom?: { lat: number; lon: number }[]; tags?: Record<string, string> }[];
+    elements: { id: number; geometry?: { lat: number; lon: number }[]; tags?: Record<string, string> }[];
   };
   return parseBuildings(payload);
 };
 
 export const parseBuildings = (payload: {
-  elements: { id: number; geom?: { lat: number; lon: number }[]; tags?: Record<string, string> }[];
+  elements: { id: number; geometry?: { lat: number; lon: number }[]; tags?: Record<string, string> }[];
 }): BuildingFootprint[] =>
   payload.elements
-    .filter((element) => (element.geom?.length ?? 0) > 3)
+    .filter((element) => (element.geometry?.length ?? 0) > 3)
     .map((element) => {
-      const ring = element.geom!.map((point) => [point.lon, point.lat] as [number, number]);
+      const ring = element.geometry!.map((point) => [point.lon, point.lat] as [number, number]);
       // Overpass repeats the first node to close the way; the engine does not.
       const closed =
         ring.length > 1 &&
