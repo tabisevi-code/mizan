@@ -186,22 +186,24 @@ test("a Dubai bill adds VAT and the meter charge", () => {
 
 // --- rules -----------------------------------------------------------------
 
-test("Dubai forbids ground mount and caps capacity at the lower of approved load and 2,080 kW", () => {
+test("Dubai forbids ground mount and applies the tiered DRRG cap", () => {
   assert.equal(RULE_SETS.dubai.groundMountPermitted, false);
 
+  // v4.1 tiers: 100% of first 100 kW + 75% of next 100 + 50% of next 200
+  // + 25% of next 200 + 5% of the remainder, capped at 1,000 kW per plot.
   const site = makeSite({ approvedLoadKw: 1200 });
-  assert.equal(regulatoryCap(site).capKw, 1200);
+  assert.equal(regulatoryCap(site).capKw, 355);
   assert.equal(regulatoryCap(site).bindingRule, "approved-load");
 
-  const bigSite = makeSite({ approvedLoadKw: 5000 });
-  assert.equal(regulatoryCap(bigSite).capKw, 2080);
+  const bigSite = makeSite({ approvedLoadKw: 20000 });
+  assert.equal(regulatoryCap(bigSite).capKw, 1000);
   assert.equal(regulatoryCap(bigSite).bindingRule, "plot-cap");
 });
 
 test("an unknown approved load is reported rather than assumed away", () => {
   const site = makeSite({ approvedLoadKw: undefined });
   const cap = regulatoryCap(site);
-  assert.equal(cap.capKw, 2080);
+  assert.equal(cap.capKw, 1000);
   assert.equal(cap.bindingRule, "plot-cap");
 });
 

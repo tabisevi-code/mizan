@@ -15,7 +15,7 @@ export const PUBLISHED_WAREHOUSES: RenewablePortfolio = {
   question: "How do published warehouse installations perform against the same five-year limit using transparent cost and tariff assumptions?",
   sites: [
     {
-      id: "published-aramex", name: "Aramex · Dubai Logistics City", where: "Dubai Logistics City", location: { lat: 24.9077, lng: 55.1110 },
+      id: "published-aramex", name: "Aramex · Dubai Logistics City", where: "Dubai Logistics City", emirate: "dubai", location: { lat: 24.9077, lng: 55.1110 },
       mapGeometry: aramexGeometry,
       mapNote: "OpenStreetMap's named Aramex warehouse footprint (way 307805557). The outline locates the building; it does not verify which roof sections carry the published solar installation or show a surveyed panel layout. Retrieved 24 September 2026.",
       category: "Published capacity + annual yield", solarKw: 3200, solarAnnualKwh: 5_000_000, annualKwh: 5_000_000 / 0.60,
@@ -28,7 +28,7 @@ export const PUBLISHED_WAREHOUSES: RenewablePortfolio = {
       ],
     },
     {
-      id: "published-ikea", name: "IKEA Supply · DWC warehouse", where: "Dubai World Central Free Zone", location: { lat: 24.89, lng: 55.10 },
+      id: "published-ikea", name: "IKEA Supply · DWC warehouse", where: "Dubai World Central Free Zone", emirate: "dubai", location: { lat: 24.89, lng: 55.10 },
       category: "Published capacity · modeled yield", solarKw: 3000, annualKwh: 8_000_000,
       approvedLoadKw: null, defaultSources: ["solar"], defaultTariff: 0.44, solarCostPerKw: 2500, sourceUrl: ikea,
       description: "ALEC Energy documents the warehouse's 3 MWp system completed in 2021. Output and consumption below are screening assumptions; neither generation nor financial performance is claimed as IKEA operating data.",

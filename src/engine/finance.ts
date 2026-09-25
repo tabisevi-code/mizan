@@ -24,7 +24,7 @@ export const OM_SOURCE: Provenance = {
   label: "O&M convention",
   asOf: "2026-09-23",
   caveat:
-    "No citable UAE benchmark was found. AED 55/kW/yr reflects industry convention including frequent cleaning for Gulf dust.",
+    "No citable UAE benchmark was found. AED 55/kW/year reflects industry convention including frequent cleaning for Gulf dust.",
 };
 
 /**

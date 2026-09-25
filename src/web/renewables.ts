@@ -1,11 +1,14 @@
-import { UAE_RENEWABLE_CASES, systemsForCase, type RenewableCase } from "../data/portfolios-uae-multi";
-import { MONTHS, SOURCE_LABELS, type RenewableSource } from "../data/uae-monthly-profiles";
+import { RENEWABLE_COSTS, UAE_RENEWABLE_CASES, systemsForCase, type RenewableCase } from "../data/portfolios-uae-multi";
+import { MONTHS, SOURCE_LABELS, solarMonthlyYield, type RenewableSource } from "../data/uae-monthly-profiles";
 import { analyzeRenewableCombination, compareScenarios } from "../engine/renewable-combinations";
+import { recommendMix } from "../engine/recommend";
+import { RULE_SETS, labelEmirate } from "../engine/rules";
+import { nearestWindSite } from "../data/wind-sites";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const number = (n: number) => new Intl.NumberFormat("en-AE", { maximumFractionDigits: 1 }).format(n);
 const money = (n: number) => `AED ${number(Math.round(n))}`;
-const payback = (n: number | null) => n === null ? "—" : `${n.toFixed(1)} yr`;
+const payback = (n: number | null) => n === null ? "—" : `${n.toFixed(1)} years`;
 type Selection = { sources: Set<RenewableSource>; capacities: Partial<Record<RenewableSource, number>>; tariff: number; annualKwh: number; costs: Partial<Record<RenewableSource, number>> };
 const selections = new Map<string, Selection>();
 let exampleId = "sir-bani-yas";
@@ -33,6 +36,24 @@ export function renderRenewables(root: HTMLElement, site: RenewableCase, example
   const result = analyzeRenewableCombination(site.name, selected, state.annualKwh, { tariffAedPerKwh: state.tariff });
   const stats = result.annualResults;
   const maxMonth = Math.max(1, ...result.monthlyGenerationKwh);
+
+  const recommendation = recommendMix({
+    emirate: site.emirate,
+    lat: site.location.lat,
+    lng: site.location.lng,
+    annualKwh: state.annualKwh,
+    solarCapKw: site.solarKw,
+    approvedLoadKw: site.approvedLoadKw ?? undefined,
+    tariffAedPerKwh: state.tariff,
+    solarMonthlyKwhPerKw: solarMonthlyYield(site.location),
+    solarCapexAedPerKw: site.solarCostPerKw ?? RENEWABLE_COSTS.solar.capexAedPerKw,
+    solarOmFraction: RENEWABLE_COSTS.solar.annualOmFraction,
+    windCapexAedPerKw: RENEWABLE_COSTS.wind.capexAedPerKw,
+    windOmFraction: RENEWABLE_COSTS.wind.annualOmFraction,
+    windSiteId: site.windProfile,
+    windTurbineId: site.windTurbine,
+  });
+  const rules = RULE_SETS[site.emirate];
   const comparisons = compareScenarios([
     ...configured.map(s => ({ name: `${SOURCE_LABELS[s.source]} only`, systems: [s] })),
     ...(configured.length > 1 ? [{ name: "All available sources", systems: configured }] : []),
@@ -43,6 +64,22 @@ export function renderRenewables(root: HTMLElement, site: RenewableCase, example
     <p class="note">${esc(site.where)} · ${number(site.annualKwh / 1000)} MWh/year initial comparison load</p>
     <p class="note">${esc(site.description)} ${site.sourceUrl ? `<a href="${esc(site.sourceUrl)}" target="_blank" rel="noopener noreferrer">Published project details ↗</a>` : ""}</p>
     ${site.evidence ? `<details open><summary>Published facts and modeling assumptions</summary>${site.evidence.map(e => `<p class="note"><strong>${esc(e.label)}:</strong> ${esc(e.value)} ${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">Source ↗</a>` : ""}</p>`).join("")}</details>` : ""}
+    <div class="rec-card">
+      <div class="rec-head"><b>Mizan recommendation</b><span>${esc(labelEmirate(site.emirate))} · ${esc(rules.scheme)}</span></div>
+      <div class="rec-mix">${recommendation.mix.length
+        ? recommendation.mix.map(m => `<div class="rec-source"><b>${esc(m.detail)}</b><span>${SOURCE_LABELS[m.source]}</span></div>`).join("")
+        : `<div class="rec-source"><b>No cost-effective mix found</b><span>every option misses the investment limit at the assumed rate</span></div>`}
+        <div class="rec-nums"><span>Output</span><b>${number(recommendation.result.annualResults.totalMwh)} MWh/year</b></div>
+        <div class="rec-nums"><span>Net saving</span><b>${money(recommendation.result.financial.netSavingsAed)}/year</b></div>
+        <div class="rec-nums"><span>Payback</span><b>${payback(recommendation.result.financial.paybackYears)}</b></div>
+        ${recommendation.windCapacityFactor !== null ? `<div class="rec-nums"><span>Wind resource</span><b>${(recommendation.windCapacityFactor * 100).toFixed(0)}% CF</b></div>` : ""}
+      </div>
+      ${recommendation.mix.length ? `<button type="button" class="rec-apply">Apply recommended mix</button>` : ""}
+      <p class="note">${esc(recommendation.solarCapNote)}</p>
+      ${recommendation.legal.map(item => `<p class="note rec-legal"><b class="${item.status === "eligible" ? "is-eligible" : item.status === "needs-evidence" ? "is-evidence" : "is-blocked"}">${item.status === "eligible" ? "✓" : item.status === "needs-evidence" ? "!" : "✕"}</b>${esc(item.text)}</p>`).join("")}
+      ${recommendation.rejected.map(r => `<p class="note rec-rejected"><strong>Ruled out:</strong> ${esc(r)}</p>`).join("")}
+      ${recommendation.evidenceNeeded.length ? `<details><summary>What is still needed before building</summary>${recommendation.evidenceNeeded.map(e => `<p class="note">${esc(e)}</p>`).join("")}</details>` : ""}
+    </div>
     <div class="energy-toggles" role="group" aria-label="Energy sources">
       ${(Object.keys(SOURCE_LABELS) as RenewableSource[]).map(source => {
         const supported = available.some(s => s.source === source);
@@ -81,7 +118,7 @@ export function renderRenewables(root: HTMLElement, site: RenewableCase, example
         <p class="note">Seasonal stability: ${result.complementarity.stabilityScore ?? "—"}/100, calculated from the variation in daily-average monthly output. Peak offset: ${result.complementarity.peakOffsetMonths === null ? "not established" : `${result.complementarity.peakOffsetMonths} months`}. Neither metric measures hourly reliability or storage requirements.</p>
       </details>
       <h4>Selected mix · financial estimate</h4>
-      <div class="renewable-table-wrap"><table class="payback-table"><caption>Shared savings allocated by each source’s monthly generation</caption><thead><tr><th>Source</th><th>Build cost</th><th>Net saving / yr</th><th>Payback</th></tr></thead><tbody>
+      <div class="renewable-table-wrap"><table class="payback-table"><caption>Shared savings allocated by each source’s monthly generation</caption><thead><tr><th>Source</th><th>Build cost</th><th>Net saving / year</th><th>Payback</th></tr></thead><tbody>
         ${result.bySource.map(s => `<tr><th>${SOURCE_LABELS[s.source]}</th><td>${money(s.financial.capexAed)}</td><td>${money(s.financial.netSavingsAed)}</td><td>${payback(s.financial.paybackYears)}</td></tr>`).join("")}
         <tr><th>Total</th><td>${money(result.financial.capexAed)}</td><td>${money(result.financial.netSavingsAed)}</td><td>${payback(result.financial.paybackYears)}</td></tr>
       </tbody></table></div>
@@ -89,7 +126,7 @@ export function renderRenewables(root: HTMLElement, site: RenewableCase, example
       <ul class="renewable-notes">${result.recommendations.map(r => `<li>${esc(r)}</li>`).join("")}</ul>
     ` : `<p class="callout">No sources selected. Select an available source to calculate generation and savings.</p>`}
     </div>
-    <details class="renewable-comparisons"><summary>Compare source combinations</summary><div class="renewable-table-wrap"><table class="payback-table"><caption>Independent alternatives at the capacities entered above</caption><thead><tr><th>Scenario</th><th>MWh/yr</th><th>Net saving / yr</th><th>Payback</th></tr></thead><tbody>${comparisons.map(r => `<tr><th>${esc(r.name)}</th><td>${number(r.annualResults.totalMwh)}</td><td>${money(r.financial.netSavingsAed)}</td><td>${payback(r.financial.paybackYears)}</td></tr>`).join("")}</tbody></table></div></details>
+    <details class="renewable-comparisons"><summary>Compare source combinations</summary><div class="renewable-table-wrap"><table class="payback-table"><caption>Independent alternatives at the capacities entered above</caption><thead><tr><th>Scenario</th><th>MWh/year</th><th>Net saving / year</th><th>Payback</th></tr></thead><tbody>${comparisons.map(r => `<tr><th>${esc(r.name)}</th><td>${number(r.annualResults.totalMwh)}</td><td>${money(r.financial.netSavingsAed)}</td><td>${payback(r.financial.paybackYears)}</td></tr>`).join("")}</tbody></table></div></details>
     <p class="note">${site.solarAnnualKwh ? "Solar annual total: published approximate yield, distributed using the UAE monthly model. " : ""}Solar: existing UAE model fitted to bundled PVGIS SARAH3 2018–2022 monthly data, including temperature and dust losses. Wind and hydro: explicitly assumed resource inputs. <a href="https://re.jrc.ec.europa.eu/pvg_tools/en/" target="_blank" rel="noopener noreferrer">PVGIS ↗</a> · <a href="https://www.dewa.gov.ae/en/about-us/strategic-initiatives/hatta-project" target="_blank" rel="noopener noreferrer">Hatta storage ↗</a></p>`;
 
   const rerender = (selector: string) => {
@@ -97,6 +134,20 @@ export function renderRenewables(root: HTMLElement, site: RenewableCase, example
     onChange?.();
     root.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
   };
+  root.querySelector<HTMLButtonElement>(".rec-apply")?.addEventListener("click", () => {
+    state.sources = new Set(recommendation.mix.map(m => m.source));
+    for (const m of recommendation.mix) {
+      state.capacities[m.source] = m.capacityKw;
+      if (m.source === "wind" && !site.windProfile) {
+        // Modelled climate now exists for every configured site, so a
+        // recommendation can inject wind even where the example had none.
+        site.windKw = m.capacityKw;
+        site.windProfile = nearestWindSite(site.location.lat, site.location.lng).id;
+        site.windTurbine = m.turbineId ?? "mid-900";
+      }
+    }
+    rerender(".rec-card");
+  });
   root.querySelector<HTMLSelectElement>("[data-case]")?.addEventListener("change", e => {
     exampleId = (e.target as HTMLSelectElement).value;
     renderRenewables(root, UAE_RENEWABLE_CASES.find(s => s.id === exampleId)!, true);
@@ -138,7 +189,8 @@ export function renderRenewables(root: HTMLElement, site: RenewableCase, example
   });
 }
 
-export function openRenewableExamples() {
+export function openRenewableExamples(siteId?: string) {
+  if (siteId && UAE_RENEWABLE_CASES.some(s => s.id === siteId)) exampleId = siteId;
   const dialog = document.getElementById("renewable-dialog") as HTMLDialogElement;
   renderRenewables(document.getElementById("renewable-examples")!, UAE_RENEWABLE_CASES.find(s => s.id === exampleId)!, true);
   dialog.showModal();
