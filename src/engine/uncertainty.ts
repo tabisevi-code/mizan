@@ -10,6 +10,8 @@
  * and reports a band, plus which input is doing the damage.
  */
 
+import { DEFAULT_FINANCE } from "./finance";
+
 export type Factors = {
   /** Multiplier on annual PV output: weather, soiling and shading together. */
   yieldFactor: number;
@@ -30,8 +32,8 @@ export const BASE_FACTORS: Factors = {
   loadFactor: 1,
   capexFactor: 1,
   omFactor: 1,
-  tariffEscalation: 0.02,
-  degradationPerYear: 0.005,
+  tariffEscalation: DEFAULT_FINANCE.tariffEscalation,
+  degradationPerYear: DEFAULT_FINANCE.degradationPerYear,
 };
 
 export type FactorRange = {
