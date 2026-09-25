@@ -46,6 +46,7 @@ import {
   type StructuralVerdict,
 } from "./rules";
 import { modelledWeatherYear, type WeatherYear } from "./solar";
+import { weatherOrModelled } from "./resource";
 import { annualBill, selectTariff, type Tariff } from "./tariff";
 import {
   BASE_FACTORS,
@@ -223,7 +224,7 @@ export const buildContext = (
   const screens = screenTechnologies(site, roofAreaM2, groundAreaM2);
   const structure = screenStructure(site.roofConstruction);
   const cap = regulatoryCap(site);
-  const resolvedWeather = weather ?? modelledWeatherYear(site.location);
+  const resolvedWeather = weatherOrModelled(site.location, weather);
 
   const load = buildLoadProfile({
     sector: site.sector,

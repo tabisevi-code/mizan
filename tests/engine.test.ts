@@ -1467,3 +1467,69 @@ test("the clearness index is the measured one, and holds outside the fitted band
   assert.ok(middle[6] < middle[0], "July should be hazier than January");
   assert.ok(CLEARNESS_FIT.previousAnnualError > CLEARNESS_FIT.crossValidatedAnnualError * 3);
 });
+
+// --- UAE resource layer ------------------------------------------------------
+
+test("the baked resource grid returns a point near every UAE site", async () => {
+  const { resourcePointFor } = await import("../src/engine/resource.ts");
+  const point = resourcePointFor(JEBEL_ALI);
+  assert.ok(Math.abs(point.lat - JEBEL_ALI.lat) <= 0.4);
+  assert.ok(Math.abs(point.lng - JEBEL_ALI.lng) <= 0.4);
+  assert.equal(point.ghiKwhM2Day.length, 12);
+  assert.ok(point.ghiKwhM2Day.every((v) => v > 2 && v < 9), "UAE GHI should sit in the 2-9 band");
+});
+
+test("the measured weather year tracks the grid's irradiation, not a constant", async () => {
+  const { resourcePointFor, weatherYearFor, measuredGhiDaily } = await import("../src/engine/resource.ts");
+  const weather = weatherYearFor(JEBEL_ALI);
+  assert.equal(weather.source, "nasa-power-climatology");
+  // weather.ghi is Wh/m2 summed over hours; the grid's figure is kWh/m2/day.
+  const annual = sum(weather.ghi) / 1000;
+  const measuredAnnual = measuredGhiDaily(JEBEL_ALI).reduce((t, m, i) => t + m * [31,28,31,30,31,30,31,31,30,31,30,31][i], 0);
+  // Modelled hours cannot exceed measured means by more than a few percent.
+  assert.ok(Math.abs(annual - measuredAnnual) / measuredAnnual < 0.08,
+    `modelled ${annual.toFixed(0)} vs measured ${measuredAnnual.toFixed(0)}`);
+  // Al Ain is further inland: its GHI must differ from the coast's.
+  const inland = resourcePointFor({ lat: 24.2, lng: 55.7 });
+  const coast = resourcePointFor(JEBEL_ALI);
+  assert.notDeepEqual(inland.ghiKwhM2Day, coast.ghiKwhM2Day);
+});
+
+test("wind shear lifts hub-height speed and Rayleigh CF stays sane", async () => {
+  const { rayleighCapacityFactor, windAtHeight, windMonthlyKwhPerKw } = await import("../src/engine/resource.ts");
+  assert.ok(windAtHeight(4, 10, 50) > 4);
+  // A 2 m/s mean still has a Rayleigh tail above cut-in, but it is tiny.
+  assert.ok(rayleighCapacityFactor(2) < 0.05, `2 m/s CF ${rayleighCapacityFactor(2)} too high`);
+  const cf = rayleighCapacityFactor(7);
+  assert.ok(cf > 0.15 && cf < 0.7, `CF ${cf} implausible for 7 m/s`);
+  const monthly = windMonthlyKwhPerKw(JEBEL_ALI);
+  assert.equal(monthly.length, 12);
+  assert.ok(monthly.every((v) => v >= 0 && v <= 744));
+});
+
+test("the measured UAE soiling curve replaces the assumed daily rate", async () => {
+  const { endOfCycleSoilingLoss, meanSoilingLoss } = await import("../src/engine/pv.ts");
+  assert.equal(endOfCycleSoilingLoss(15), 0.04);
+  assert.equal(endOfCycleSoilingLoss(90), 0.13);
+  const measured = meanSoilingLoss({ ...DEFAULT_PV_LOSSES, cleaningIntervalDays: 30 });
+  assert.ok(measured > 0.02 && measured < 0.08, `30-day mean loss was ${measured}`);
+  const manual = meanSoilingLoss({ ...DEFAULT_PV_LOSSES, useMeasuredUaeSoiling: false });
+  assert.ok(Math.abs(manual - (0.0035 * 21) / 2) < 1e-9);
+});
+
+test("an unreachable energy target names the constraint and the shortfall", async () => {
+  const { plan } = await import("../src/engine/plan.ts");
+  // Asking for 90% coverage on a 5 GWh load needs ~4.5 GWh self-consumed —
+  // far more than this roof and a 1,000 kW ceiling can deliver.
+  const result = plan(makeSite({ energyTargetShare: 0.9 }));
+  assert.ok(result.infeasibility, "expected the target to be flagged unreachable");
+  assert.equal(result.infeasibility!.requiredKwh, 4_500_000);
+  assert.ok(result.infeasibility!.shortfallKwh > 0);
+  assert.ok(result.infeasibility!.explanation.length > 30);
+
+  // A modest target is met and the cheapest meeting option is offered.
+  const modest = plan(makeSite({ energyTargetShare: 0.05 }));
+  assert.equal(modest.infeasibility, null);
+  assert.ok(modest.targetOption, "expected a meeting option");
+  assert.ok(modest.targetOption!.simulation.selfConsumedKwh >= 0.05 * 5_000_000);
+});
