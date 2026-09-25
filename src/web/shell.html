@@ -261,6 +261,14 @@
   }
   .fact-row:last-child { border-bottom: none; }
   .fact-row > div { min-width: 0; }
+  .register-row {
+    padding: 9px 0; border-bottom: 1px solid var(--line);
+  }
+  .register-row:last-child { border-bottom: none; }
+  .register-head {
+    display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+  }
+  .register-head .fact-value { white-space: normal; text-align: right; flex-shrink: 1; min-width: 0; }
   .fact-label { color: var(--ink-dim); font-size: 12.5px; }
   .fact-label button {
     color: var(--faint); border-bottom: 1px dotted var(--faint); font-size: inherit;
@@ -464,6 +472,11 @@
         <h3>What went in</h3>
         <div class="facts" id="inputs"></div>
         <p class="note" id="inputs-help">Underlined terms are the ones that decide the answer. Click any of them.</p>
+      </div>
+      <div class="block">
+        <h3>What this leans on</h3>
+        <p class="note" id="register-summary"></p>
+        <div class="facts" id="register"></div>
       </div>
       <div class="block">
         <h3>How far this can be trusted</h3>

@@ -7,6 +7,7 @@
  * `confidence: "unverified"` so the UI can say so rather than bluff.
  */
 
+import { HYDRO_TURBINE_EFFICIENCY } from "./renewable-combinations";
 import type {
   ScreenStatus,
   Emirate,
@@ -17,15 +18,39 @@ import type {
   TechnologyId,
 } from "./types";
 
+export type TclSlab = {
+  /** Upper bound of Total Connected Load covered by this slab, in kW. */
+  upToKw: number;
+  /** Fraction of TCL within this slab that renewable capacity may equal. */
+  share: number;
+};
+
 export type RuleSet = {
   emirate: Emirate;
   scheme: string;
   /** Hard cap on installed PV per plot in kW, if published. */
   plotCapKw: number | null;
+  /**
+   * Sliding share of Total Connected Load that connected capacity may equal,
+   * as a slab schedule. Dubai's DRRG v4.1 uses this instead of a flat
+   * approved-load limit; the schedule is cumulative and reaches its published
+   * ceiling of 1,000 kW near 14.1 MW of connected load.
+   */
+  tclSlabs?: TclSlab[];
   /** True when PV capacity may not exceed the account's Approved Load. */
   cappedByApprovedLoad: boolean;
   groundMountPermitted: boolean;
-  exportTreatment: "credit-rollover-indefinite" | "credit-expires-annually" | "unknown";
+  /**
+   * True when the emirate's electricity law reserves generation to the
+   * utility, so an off-grid or private-wire answer is prohibited without
+   * written approval. Dubai Law 27 of 2021, restated in DRRG v4.1.
+   */
+  offGridProhibited: boolean;
+  exportTreatment:
+    | "credit-rollover-indefinite"
+    | "credit-expires-annually"
+    | "none"
+    | "unknown";
   /** True when only utility-enrolled contractors may design and install. */
   enrolledContractorRequired: boolean;
   connectionFeeAed: number | null;
@@ -37,25 +62,35 @@ export type RuleSet = {
 export const RULE_SETS: Record<Emirate, RuleSet> = {
   dubai: {
     emirate: "dubai",
-    scheme: "Shams Dubai (DEWA DRRG)",
-    plotCapKw: 2080,
-    cappedByApprovedLoad: true,
+    scheme: "Shams Dubai (DEWA DRRG v4.1)",
+    plotCapKw: 1000,
+    tclSlabs: [
+      { upToKw: 100, share: 1 },
+      { upToKw: 200, share: 0.75 },
+      { upToKw: 400, share: 0.5 },
+      { upToKw: 600, share: 0.25 },
+      { upToKw: Infinity, share: 0.05 },
+    ],
+    cappedByApprovedLoad: false,
     groundMountPermitted: false,
+    offGridProhibited: true,
     exportTreatment: "credit-rollover-indefinite",
     enrolledContractorRequired: true,
     connectionFeeAed: 1500,
     confidence: "published",
     provenance: {
       kind: "authority",
-      label: "DEWA DRRG connection conditions",
-      url: "https://www.dewa.gov.ae/en/consumer/solar-community/shams-dubai/shams-dubai-faq",
-      asOf: "2026-09-23",
+      label: "DEWA DRRG connection conditions v4.1",
+      url: "https://www.dewa.gov.ae/-/media/Files/DRRG2025/DEWA-DRRG-Connection-Conditions_EN_V4-1_20251127.ashx",
+      asOf: "2026-09-25",
     },
     notes: [
-      "Installed capacity may not exceed the sum of Approved Load across the plot's consumption accounts.",
-      "Hard ceiling of 2,080 kW per plot, stated as admitting no exceptions.",
+      "Connected capacity is a sliding share of the plot's Total Connected Load: 100% of the first 100 kW, then 75%, 50%, 25% and 5% of successive slabs, topping out at 1,000 kW per plot.",
+      "A 600 kW connected load therefore admits 325 kW, not 600 kW; the old flat approved-load cap overstated what can be built.",
       "Ground-mounted systems are not eligible under Shams Dubai; rooftop and building-integrated only.",
       "Surplus export is credited to future bills indefinitely and is never paid out in cash.",
+      "Third-party off-grid generation is prohibited in Dubai under Law 27 of 2021 except backup plant and written exceptions.",
+      "An annual connection cap applies across the emirate, so approval also depends on capacity left in the year's queue.",
       "Design and installation must be by a DEWA-enrolled DRRG consultant and contractor.",
     ],
   },
@@ -65,22 +100,23 @@ export const RULE_SETS: Record<Emirate, RuleSet> = {
     plotCapKw: null,
     cappedByApprovedLoad: true,
     groundMountPermitted: true,
-    exportTreatment: "unknown",
+    offGridProhibited: false,
+    exportTreatment: "none",
     enrolledContractorRequired: true,
     connectionFeeAed: null,
     confidence: "partial",
     provenance: {
       kind: "authority",
-      label: "Abu Dhabi DoE self-supply policy",
-      url: "https://www.doe.gov.ae",
-      asOf: "2026-09-23",
+      label: "Abu Dhabi DoE self-supply policy (Resolution 20 of 2026)",
+      url: "https://www.doe.gov.ae/-/media/Project/DOE/Department-Of-Energy/Media-Center-Publications/2026/Feb/PV-and-Battery-Energy-Storage-Systems-For-Self-Supply-Policy.pdf",
+      asOf: "2026-09-25",
       caveat:
-        "Policy effective 5 February 2026. Capacity caps and export compensation are not published in the sources checked; treat sizing here as indicative until the primary document is obtained.",
+        "Policy effective 5 February 2026. The policy text states that net metering is not permitted unless explicitly authorised by the DoE, so exports earn nothing. Capacity caps are set in the implementing instruments, not the policy; sizing here falls back to the site's own approved load.",
     },
     notes: [
-      "A self-supply scheme exists for businesses as of February 2026.",
-      "The scheme name implies export is discouraged; do not model export revenue.",
-      "Capacity limits are unconfirmed, so sizing falls back to the site's own approved load.",
+      "Distributed PV and PV-plus-battery self-supply is permitted for businesses under Executive Council Resolution 20 of 2026.",
+      "Net metering, cross-plot sales and private wires are not permitted unless the DoE explicitly authorises them, so no export credit is modelled.",
+      "Capacity limits are set by implementing instruments rather than the policy itself; sizing falls back to the site's own approved load.",
     ],
   },
   sharjah: {
@@ -89,6 +125,7 @@ export const RULE_SETS: Record<Emirate, RuleSet> = {
     plotCapKw: null,
     cappedByApprovedLoad: true,
     groundMountPermitted: true,
+    offGridProhibited: false,
     exportTreatment: "unknown",
     enrolledContractorRequired: true,
     connectionFeeAed: null,
@@ -114,6 +151,7 @@ function northernEmirates(emirate: Emirate): RuleSet {
     plotCapKw: null,
     cappedByApprovedLoad: true,
     groundMountPermitted: true,
+    offGridProhibited: false,
     exportTreatment: "credit-expires-annually",
     enrolledContractorRequired: true,
     connectionFeeAed: null,
@@ -136,15 +174,43 @@ export type CapResult = {
   /** The largest PV system the rules allow, kW. */
   capKw: number;
   /** Which rule bound it. */
-  bindingRule: "approved-load" | "plot-cap" | "none";
+  bindingRule: "approved-load" | "tcl-slab" | "plot-cap" | "none";
   explanation: string;
+};
+
+/**
+ * DEWA DRRG v4.1 section 2.2: connected renewable capacity is a sliding share
+ * of the plot's Total Connected Load. The table reads 100% of the first
+ * 100 kW, 75% of the next 100, 50% of 200 to 400, 25% of 400 to 600 and 5% of
+ * everything above, with a stated maximum of 1,000 kW. The cumulative formula
+ * reaches 1,000 kW at roughly 14.1 MW of connected load, which is far past any
+ * site this tool screens, so the 1,000 kW figure is applied as the ceiling.
+ */
+export const tclSlabCapKw = (totalConnectedLoadKw: number, slabs: TclSlab[]): number => {
+  let allowed = 0;
+  let floor = 0;
+  for (const slab of slabs) {
+    const width = Math.min(totalConnectedLoadKw, slab.upToKw) - floor;
+    if (width > 0) allowed += width * slab.share;
+    floor = slab.upToKw;
+  }
+  return allowed;
 };
 
 export const regulatoryCap = (site: SiteProfile): CapResult => {
   const rules = RULE_SETS[site.emirate];
   const limits: { kw: number; rule: CapResult["bindingRule"]; text: string }[] = [];
 
-  if (rules.cappedByApprovedLoad && site.approvedLoadKw && site.approvedLoadKw > 0) {
+  // The site's single approved-load figure stands in for the plot's Total
+  // Connected Load: a multi-account plot's true TCL is the sum across every
+  // consumption account, so this is conservative where several accounts exist.
+  if (rules.tclSlabs && site.approvedLoadKw && site.approvedLoadKw > 0) {
+    limits.push({
+      kw: Math.min(rules.plotCapKw ?? Infinity, tclSlabCapKw(site.approvedLoadKw, rules.tclSlabs)),
+      rule: "tcl-slab",
+      text: `${rules.scheme} allows a sliding share of Total Connected Load — on a TCL of ${site.approvedLoadKw.toLocaleString()} kW that is ${Math.round(tclSlabCapKw(site.approvedLoadKw, rules.tclSlabs)).toLocaleString()} kW.`,
+    });
+  } else if (rules.cappedByApprovedLoad && site.approvedLoadKw && site.approvedLoadKw > 0) {
     limits.push({
       kw: site.approvedLoadKw,
       rule: "approved-load",
@@ -349,7 +415,7 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   });
 
   const hydro = evidence.hydro;
-  const hydroKw = hydro ? 9.81 * hydro.flowCms * hydro.headM * 0.68 : 0;
+  const hydroKw = hydro ? 9.81 * hydro.flowCms * hydro.headM * HYDRO_TURBINE_EFFICIENCY : 0;
   results.push({
     id: "hydro",
     label: "Micro hydro",

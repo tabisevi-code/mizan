@@ -12,6 +12,9 @@ import type { LatLng, PvArraySpec, Ring } from "./types";
 const DEG = Math.PI / 180;
 const EARTH_RADIUS_M = 6378137;
 
+/** Row pitch of an east-west pair as a multiple of its plan depth; the reciprocal is its ground coverage ratio. */
+export const EAST_WEST_PITCH_FACTOR = 1.08;
+
 /** Planar area of a lng/lat ring in square metres, good to well under 1% at city scale. */
 export const ringAreaM2 = (ring: Ring): number => {
   if (ring.length < 3) return 0;
@@ -109,7 +112,7 @@ export const fitArray = (
   // output spreads into the morning and evening instead of spiking at noon.
   const gcr =
     layout === "east-west"
-      ? Math.min(0.92, 1 / 1.08)
+      ? Math.min(0.92, 1 / EAST_WEST_PITCH_FACTOR)
       : groundCoverageRatio(tiltDeg, latitudeDeg);
   const moduleAreaM2 = module.widthM * module.heightM;
   const moduleCount = Math.floor((usableAreaM2 * gcr) / moduleAreaM2);

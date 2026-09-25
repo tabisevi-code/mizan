@@ -23,6 +23,7 @@ import {
   sum,
   type HourlySeries,
   type LatLng,
+  type Provenance,
   type PvArraySpec,
 } from "./types";
 
@@ -52,11 +53,14 @@ export type PvLossAssumptions = {
   degradationPerYear: number;
   /**
    * Soiling between cleans. Gulf dust is the reason this is not a token 2%.
-   * `soilingRatePerDay` is the fractional output loss accumulated each day;
-   * `cleaningIntervalDays` resets it. The average loss over a cycle is applied.
+   * `soilingRatePerDay` is retained for callers that supply their own measured
+   * rate; `cleaningIntervalDays` sets how often the panels are washed. When
+   * `useMeasuredUaeSoiling` is true the loss follows the published Al Ain
+   * field measurements instead of a linear rate.
    */
   soilingRatePerDay: number;
   cleaningIntervalDays: number;
+  useMeasuredUaeSoiling?: boolean;
 };
 
 /**
@@ -73,10 +77,56 @@ export const DEFAULT_PV_LOSSES: PvLossAssumptions = {
   degradationPerYear: 0.005,
   soilingRatePerDay: 0.0035,
   cleaningIntervalDays: 21,
+  useMeasuredUaeSoiling: true,
+};
+
+/**
+ * End-of-interval soiling loss measured on PV panels in Al Ain, UAE, 2019,
+ * published in Sustainability 2020 (Al-Otaibi et al.). The study left panels
+ * uncleaned and recorded the power loss versus a cleaned reference: about 4%
+ * after two weeks and 13% after three months. The curve between is assumed
+ * piecewise linear, which matches how dust accumulates in this climate.
+ */
+export const UAE_SOILING_MEASURED: { days: number; loss: number }[] = [
+  { days: 0, loss: 0 },
+  { days: 15, loss: 0.04 },
+  { days: 90, loss: 0.13 },
+];
+
+export const SOILING_MEASURED_SOURCE: Provenance = {
+  kind: "dataset",
+  label: "Al Ain PV soiling study",
+  url: "https://www.mdpi.com/2071-1050/12/9/3823",
+  asOf: "2026-09-25",
+  caveat:
+    "Field measurements on fixed-tilt modules in Al Ain. Coastal dust composition differs; the curve interpolates linearly and saturates beyond 90 days.",
+};
+
+/** Loss on the day panels are cleaned, interpolating the measured curve. */
+export const endOfCycleSoilingLoss = (days: number): number => {
+  const table = UAE_SOILING_MEASURED;
+  if (days <= table[0].days) return table[0].loss;
+  for (let i = 1; i < table.length; i += 1) {
+    if (days <= table[i].days) {
+      const a = table[i - 1];
+      const b = table[i];
+      return a.loss + ((days - a.days) / (b.days - a.days)) * (b.loss - a.loss);
+    }
+  }
+  // Past the last measurement the dust film has effectively saturated; hold it.
+  return table[table.length - 1].loss;
 };
 
 /** Mean soiling loss over one cleaning cycle, as a fraction of output. */
 export const meanSoilingLoss = (losses: PvLossAssumptions): number => {
+  if (losses.useMeasuredUaeSoiling) {
+    // Average the measured end-of-cycle curve over the interval. Daily
+    // accumulation is near-linear, so a coarse 1-day integral is enough.
+    const days = Math.max(1, Math.round(losses.cleaningIntervalDays));
+    let total = 0;
+    for (let day = 1; day <= days; day += 1) total += endOfCycleSoilingLoss(day);
+    return Math.min(0.35, total / days);
+  }
   const peak = losses.soilingRatePerDay * losses.cleaningIntervalDays;
   // Loss ramps roughly linearly between cleans, so the mean is half the peak.
   return Math.min(0.35, peak / 2);

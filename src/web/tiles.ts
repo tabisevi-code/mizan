@@ -37,6 +37,9 @@ const latToY = (lat: number, zoom: number) => {
   return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** zoom;
 };
 
+/** Metres per degree of latitude (and of longitude at the equator). */
+export const M_PER_DEG_LAT = 111320;
+
 export type TileBox = {
   /** Metre box being shown, in the scene's local frame. */
   x: number;
@@ -84,8 +87,8 @@ export const tileLayer = (box: TileBox, basemap: Basemap = "satellite"): HTMLEle
   };
 
   const [originLng, originLat] = box.origin;
-  const mPerDegLat = 111320;
-  const mPerDegLng = 111320 * Math.cos((originLat * Math.PI) / 180);
+  const mPerDegLat = M_PER_DEG_LAT;
+  const mPerDegLng = M_PER_DEG_LAT * Math.cos((originLat * Math.PI) / 180);
   const west = originLng + box.x / mPerDegLng;
   const east = originLng + (box.x + box.w) / mPerDegLng;
   const south = originLat + box.y / mPerDegLat;

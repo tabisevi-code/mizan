@@ -418,7 +418,7 @@ export type WeatherYear = {
   ghi: HourlySeries;
   ambientC: HourlySeries;
   windMs: HourlySeries;
-  source: "modelled-clear-sky" | "pvgis-tmy";
+  source: "modelled-clear-sky" | "pvgis-tmy" | "nasa-power-climatology";
 };
 
 /**

@@ -91,6 +91,12 @@ export type SiteProfile = {
   /** Capex ceiling in AED, if the customer has one. */
   budgetAed?: number;
   /**
+   * Fraction of annual consumption the renewable mix must cover, 0 to 1.
+   * When set, the planner checks whether any buildable option reaches it and
+   * reports the binding constraint and shortfall when none does.
+   */
+  energyTargetShare?: number;
+  /**
    * How the roof is built. This is the most common reason a UAE rooftop
    * project dies after the numbers already looked good, so it is screened
    * before anything is recommended.

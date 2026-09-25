@@ -16,6 +16,7 @@ import { SECTOR_LABELS } from "../engine/load";
 import { plan, type CapacityOverride, type PlanResult } from "../engine/plan";
 import { RULE_SETS, labelEmirate } from "../engine/rules";
 import { DEFAULT_PACK } from "../engine/packing";
+import { DEFAULT_USABLE_AREA } from "../engine/capacity";
 import { DEFAULT_ROOF_TILT_DEG, ENGINE_VALIDATION, DEFAULT_PV_LOSSES, meanSoilingLoss, simulateArray } from "../engine/pv";
 import { CLEARNESS_FIT, modelledWeatherYear, type WeatherYear } from "../engine/solar";
 import {
@@ -40,26 +41,15 @@ import { openRenewableExamples, renderRenewables } from "./renewables";
 import { solarMonthlyYield } from "../data/uae-monthly-profiles";
 import { RENEWABLE_PORTFOLIOS, type RenewablePortfolio } from "../data/renewable-portfolios";
 import { renderRenewableWorkspace } from "./renewable-workspace";
+import { computeSite, latLngOfSite, type Outcome } from "./site-compute";
+import { assumptionRegister, registerSummary } from "../engine/register";
+import EngineWorker from "./engine.worker.ts?worker&inline";
 
 // --- formatting -------------------------------------------------------------
 
-const num = new Intl.NumberFormat("en-AE", { maximumFractionDigits: 0 });
-const aed = (value: number): string => {
-  if (!Number.isFinite(value)) return "—";
-  const abs = Math.abs(value);
-  if (abs >= 1e6) return `AED ${(value / 1e6).toFixed(2)}m`;
-  if (abs >= 1e3) return `AED ${Math.round(value / 1e3)}k`;
-  return `AED ${Math.round(value)}`;
-};
-const kwh = (value: number): string => {
-  if (value >= 1e6) return `${(value / 1e6).toFixed(2)} GWh`;
-  if (value >= 1e3) return `${num.format(Math.round(value / 1e3))} MWh`;
-  return `${num.format(value)} kWh`;
-};
-const pct = (value: number, places = 1) => `${(value * 100).toFixed(places)}%`;
+import { aed, esc, kwh, num, pct } from "./format";
+
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const esc = (text: string) =>
-  text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 // --- scenes -----------------------------------------------------------------
 
@@ -74,237 +64,75 @@ const buildingsFor = (id: string): SceneBuilding[] => {
   return sceneCache.get(id)!;
 };
 
-const latLngOf = (site: PortfolioSite) => {
-  const scene = SCENES[site.sceneId];
-  const building = buildingsFor(site.sceneId)[site.buildingIndex];
-  const centre = building.polygon.reduce(
-    (total, p) => [total[0] + p[0] / building.polygon.length, total[1] + p[1] / building.polygon.length],
-    [0, 0],
-  );
-  const mPerDegLat = 111320;
-  const mPerDegLng = 111320 * Math.cos((scene.o[1] * Math.PI) / 180);
-  return { lat: scene.o[1] + centre[1] / mPerDegLat, lng: scene.o[0] + centre[0] / mPerDegLng };
-};
+const latLngOf = (site: PortfolioSite) =>
+  latLngOfSite(site, buildingsFor(site.sceneId), SCENES[site.sceneId].o);
 
 // --- running one site -------------------------------------------------------
 
-type Outcome = {
-  status: "good" | "warn" | "stop";
-  /** One line for the rail. */
-  headline: string;
-  /** The sentence that explains the verdict. */
-  reason: string;
-  result: PlanResult;
-  packed: ReturnType<typeof packRoof>;
-  polygon: PolygonM;
-  shading: ShadingResult | null;
-  blocked: (ObstructionShading & { unknownHeights: number; considered: number; taller: number }) | null;
-  design: ElectricalDesign | null;
-  fill: number;
-  fullRoofShading: number;
-  weather: WeatherYear;
-  profile: SiteProfile;
-};
-
 const outcomes = new Map<string, Outcome>();
 
-const shadingOptions = (layout: "south" | "east-west") => ({
-  tiltDeg: DEFAULT_ROOF_TILT_DEG,
-  azimuthDeg: layout === "east-west" ? -90 : 0,
-  moduleLengthM: DEFAULT_PACK.moduleHeightM,
-  moduleWidthM: DEFAULT_PACK.moduleWidthM,
-  albedo: 0.15,
+/** A site whose computation threw, shown as a stop rather than left pending. */
+type Failure = Pick<Outcome, "status" | "headline" | "reason">;
+
+const failures = new Map<string, Failure>();
+
+const failureFor = (error: unknown): Failure => ({
+  status: "stop",
+  headline: "Could not be worked out",
+  reason: `The screening for this site failed: ${error instanceof Error ? error.message : String(error)}`,
 });
 
-const profileFor = (
-  site: PortfolioSite,
-  polygon: PolygonM,
-  location: { lat: number; lng: number },
-  origin: { lng: number; lat: number },
-): SiteProfile => ({
-  siteName: site.name,
-  emirate: site.emirate,
-  customerClass: site.customerClass,
-  sector: site.sector,
-  location,
-  annualKwh: site.annualKwh,
-  approvedLoadKw: site.approvedLoadKw,
-  roofConstruction: site.roofConstruction,
-  // The real outline, so the engine reports the roof it actually screened
-  // rather than a blank where the area should be.
-  roofRings: [metresToLngLat(polygon, origin)],
-  evidence: {
-    hasRoofSurvey: false,
-    hasStructuralReserve: site.roofConstruction === "concrete",
-    hasLandRights: false,
-    hasIntervalMeterData: false,
-    hasApprovedLoadLetter: true,
-  },
-});
+/**
+ * Site work runs in a worker when the browser supports one, so packing a
+ * portfolio does not freeze the map. `?worker&inline` keeps the single-file
+ * page build self-contained; where a worker cannot start, the same code runs
+ * on the main thread one site at a time.
+ */
+let engineWorker: Worker | null = null;
+try {
+  engineWorker = new EngineWorker();
+} catch {
+  engineWorker = null;
+}
 
+const inflight = new Set<string>();
+
+if (engineWorker) {
+  engineWorker.onmessage = (
+    event: MessageEvent<{
+      portfolioId: string;
+      siteId: string;
+      outcome?: Outcome;
+      error?: string;
+    }>,
+  ) => {
+    const { portfolioId, siteId, outcome, error } = event.data;
+    inflight.delete(siteId);
+    if (portfolioId !== portfolio.id || renewablePortfolio) return;
+    if (error) {
+      console.error("site failed", siteId, error);
+      failures.set(siteId, failureFor(error));
+    } else if (outcome) {
+      outcomes.set(siteId, outcome);
+      failures.delete(siteId);
+    }
+    if (siteId === activeSiteId) render();
+    else renderRail();
+  };
+}
+
+/** Compute one site synchronously on the main thread — the no-worker path. */
 const runSite = (site: PortfolioSite): Outcome => {
   const cached = outcomes.get(site.id);
   if (cached) return cached;
-
-  const buildings = buildingsFor(site.sceneId);
-  const subject = buildings[site.buildingIndex];
-  const polygon = subject.polygon;
-  const location = latLngOf(site);
-  const scene = SCENES[site.sceneId];
-  const profile = profileFor(site, polygon, location, { lng: scene.o[0], lat: scene.o[1] });
-  const weather = modelledWeatherYear(location);
-
-  const south = packRoof(polygon, location.lat, { layout: "south" });
-  const eastWest = packRoof(polygon, location.lat, { layout: "east-west" });
-
-  // What the buildings around it block. Needs this roof's own height: a
-  // neighbour only shades it by the part standing above it.
-  const roofHeight = site.roofHeightM ?? subject.heightM;
-  let blocked: Outcome["blocked"] = null;
-  if (roofHeight !== null && south.rows.length > 0) {
-    const centre: [number, number] = [
-      polygon.reduce((t, p) => t + p[0], 0) / polygon.length,
-      polygon.reduce((t, p) => t + p[1], 0) / polygon.length,
-    ];
-    const { obstructions, unknownHeights, considered } = neighbourObstructions(
-      buildings
-        .filter((b) => b.index !== site.buildingIndex)
-        .map((b) => ({ ring: b.polygon, heightM: b.heightM, label: `${num.format(Math.round(b.areaM2))} m² building` })),
-      roofHeight,
-      400,
-      centre,
-    );
-    const sky = buildSkyEnergy(location, weather, shadingOptions("south"));
-    blocked = {
-      ...obstructionShading(south.rows, obstructions, sky, DEFAULT_PACK.moduleWidthM),
-      unknownHeights,
-      considered,
-      taller: obstructions.length,
-    };
-  }
-
-  const combine = (a: number, b: number) => 1 - (1 - a) * (1 - b);
-  const curve = (packed: ReturnType<typeof packRoof>, layout: "south" | "east-west") =>
-    shadingCurve(packed.rows, location, weather, shadingOptions(layout)).map((point) => ({
-      fill: point.fill,
-      loss: combine(point.loss, blocked?.arrayLossOfPoa ?? 0),
-    }));
-
-  const override: CapacityOverride = {
-    south: { kwp: south.kwp, moduleCount: south.moduleCount, shadingCurve: curve(south, "south") },
-    "east-west": { kwp: eastWest.kwp, moduleCount: eastWest.moduleCount, shadingCurve: curve(eastWest, "east-west") },
-  };
-
-  const result = plan(profile, weather, { aedPerKwh: 0.21, escalation: 0.02, termYears: 25 }, override);
-  const isEastWest = result.best?.sizing.layout === "east-west";
-  const packed = isEastWest ? eastWest : south;
-  const layout = isEastWest ? "east-west" : "south";
-  const fill = packed.kwp > 0 ? Math.min(1, (result.best?.sizing.roofSolarKwp ?? 0) / packed.kwp) : 0;
-  const rows = thinRows(packed.rows, fill);
-  const shading = rows.length >= 2 ? rowShading(rows, location, weather, shadingOptions(layout)) : null;
-  const shipped = override[layout]?.shadingCurve ?? [];
-
-  let design: ElectricalDesign | null = null;
-  const targetKwp = result.best?.sizing.roofSolarKwp ?? 0;
-  if (targetKwp > 0 && packed.rows.length > 0) {
-    const temps = DESIGN_TEMPERATURES[site.emirate];
-    const module = MODULES[0];
-    design = designElectrical({
-      rows: packed.rows,
-      module,
-      inverter: chooseInverter(targetKwp, temps, module),
-      temperatures: temps,
-      plantAt: plantPositions(polygon).inverter,
-      roof: polygon,
-      moduleLimit: Math.max(1, Math.round((targetKwp * 1000) / module.watts)),
-    });
-  }
-
-  const outcome: Outcome = {
-    ...verdict(site, result, blocked, PORTFOLIOS.find((p) => p.sites.some((x) => x.id === site.id))!.hurdleYears),
-    result,
-    packed,
-    polygon,
-    shading,
-    blocked,
-    design,
-    fill,
-    fullRoofShading: shipped.length > 0 ? shipped[shipped.length - 1].loss : 0,
-    weather,
-    profile,
-  };
+  const hurdleYears =
+    PORTFOLIOS.find((p) => p.sites.some((x) => x.id === site.id))?.hurdleYears ??
+    portfolio.hurdleYears;
+  const outcome = computeSite(site, buildingsFor(site.sceneId), SCENES[site.sceneId].o, hurdleYears);
   outcomes.set(site.id, outcome);
   return outcome;
 };
 
-/**
- * The verdict, and the reason for it in one sentence. Every branch here names
- * something a person can act on: a measurement to take, a rule that binds, or
- * a building next door that is not going anywhere.
- */
-const verdict = (
-  site: PortfolioSite,
-  result: PlanResult,
-  blocked: Outcome["blocked"],
-  hurdleYears: number,
-): { status: Outcome["status"]; headline: string; reason: string } => {
-  const best = result.best;
-  const structure = result.context.structure;
-
-  if (structure.status === "not-viable" || structure.recommendedMounting === "blocked") {
-    return {
-      status: "stop",
-      headline: "Roof cannot take it",
-      reason: `${structure.headline} ${structure.detail}`,
-    };
-  }
-  if (!best || best.sizing.roofSolarKwp <= 0) {
-    return {
-      status: "stop",
-      headline: "Nothing worth building",
-      reason:
-        result.context.cap.capKw <= 0
-          ? result.context.cap.explanation
-          : "No system size pays back on this site's consumption and tariff. The building does not use enough power during daylight to be worth covering.",
-    };
-  }
-
-  const payback = best.finance.simplePaybackYears;
-  if (payback === null || payback > hurdleYears) {
-    return {
-      status: "stop",
-      headline:
-        payback === null
-          ? "Never pays back"
-          : `${payback.toFixed(1)} years, past your ${hurdleYears}-year limit`,
-      reason:
-        payback === null
-          ? "Nothing here earns back its cost. The building draws too little during daylight to be worth covering."
-          : `It would pay back eventually, and ${aed(best.finance.firstYearSavingsAed)} a year is real money, but not inside the ${hurdleYears} years this portfolio approves. The building is barely used during daylight, and solar is worth most when it is consumed on site: under Shams Dubai anything exported is credited against later bills and never paid out in cash.`,
-    };
-  }
-
-  const shadeLoss = blocked?.arrayLossOfPoa ?? 0;
-  if (shadeLoss > 0.08) {
-    return {
-      status: "warn",
-      headline: `${num.format(best.sizing.roofSolarKwp)} kW · ${payback.toFixed(1)}y · heavily shaded`,
-      reason: `${blocked!.taller} buildings within 400 m stand above this roof and take ${pct(shadeLoss)} of the year. It still pays back, but the shaded strip is worth leaving empty rather than filling.`,
-    };
-  }
-  if (structure.status === "needs-evidence") {
-    return {
-      status: "warn",
-      headline: `${num.format(best.sizing.roofSolarKwp)} kW · ${payback.toFixed(1)}y · check the roof`,
-      reason: `${structure.headline} ${structure.detail}`,
-    };
-  }
-  return {
-    status: "good",
-    headline: `${num.format(best.sizing.roofSolarKwp)} kW · pays back ${payback.toFixed(1)}y`,
-    reason: `${aed(best.finance.firstYearSavingsAed)} off the first year's bill, from ${num.format(best.sizing.roofSolarKwp)} kW. ${best.bindingExplanation}`,
-  };
-};
 
 // --- state ------------------------------------------------------------------
 
@@ -327,7 +155,7 @@ const renderRail = () => {
   const list = byId("site-list");
   list.innerHTML = portfolio.sites
     .map((site) => {
-      const done = outcomes.get(site.id);
+      const done = outcomes.get(site.id) ?? failures.get(site.id);
       const cls = done ? `is-${done.status}` : "";
       const line = done
         ? `<div class="site-result ${done.status === "good" ? "" : `is-${done.status}`}">${esc(done.headline)}</div>`
@@ -351,7 +179,7 @@ const renderRail = () => {
 
   const tally = { good: 0, warn: 0, stop: 0 };
   for (const site of portfolio.sites) {
-    const done = outcomes.get(site.id);
+    const done = outcomes.get(site.id) ?? failures.get(site.id);
     if (done) tally[done.status] += 1;
   }
   byId("tally-good").textContent = String(tally.good);
@@ -405,7 +233,7 @@ const drawStage = (site: PortfolioSite, outcome: Outcome | undefined) => {
     area: `${scene.area}. Every outline is a building mapped in OpenStreetMap; this site is the one picked out.`,
     roof: outcome
       ? `${num.format(outcome.packed.moduleCount)} panels fit inside this outline after a 1.5 m edge setback and a 30% allowance for plant, skylights and walkways. ${num.format(Math.round(fillShare * outcome.packed.moduleCount))} are drawn. ${outcome.result.best?.bindingExplanation ?? ""}`
-      : "Laying out the array…",
+      : failures.has(site.id) ? "This site could not be worked out." : "Laying out the array…",
     wiring: outcome?.design
       ? `Each coloured line is one string of ${outcome.design.sizing.modulesPerString} panels wired in series, taking every other panel out along the row and picking up the rest on the way back, so both ends finish together. Dashed lines are the cable back to the inverters.`
       : "No array to wire here.",
@@ -448,12 +276,19 @@ const working = (site: PortfolioSite, outcome: Outcome): string => {
   );
   const soiling = meanSoilingLoss(DEFAULT_PV_LOSSES);
   const heat = unit.lossBreakdown.find((l) => l.label.startsWith("Heat"))?.fraction ?? 0;
+  const systemLossLabels = ["DC wiring and mismatch", "Inverter conversion", "Availability", "Nameplate, part-load and mismatch"];
+  const systemLoss =
+    1 -
+    unit.lossBreakdown
+      .filter((l) => systemLossLabels.includes(l.label))
+      .reduce((kept, l) => kept * (1 - l.fraction), 1);
+  const roofAllowance = DEFAULT_USABLE_AREA.roofObstructionAllowance;
 
   const size = [
     step("Roof outline, from OpenStreetMap", `${num.format(context.roofAreaM2)} m²`),
     step("Less a 1.5 m setback at every edge", `${num.format(packed.netAreaM2)} m²`),
     note("Kept clear for access and wind uplift, measured in from each edge rather than shrunk towards the middle."),
-    step("Less 30% for plant, skylights, walkways", `${num.format(Math.round(packed.netAreaM2 * 0.7))} m²`),
+    step(`Less ${pct(roofAllowance, 0)} for plant, skylights, walkways`, `${num.format(Math.round(packed.netAreaM2 * (1 - roofAllowance)))} m²`),
     step(`Panels that fit, laid ${layout === "east-west" ? "east–west" : "facing south"}`, `${num.format(packed.moduleCount)}`),
     note(`1.134 × 2.278 m panels at ${DEFAULT_ROOF_TILT_DEG}° tilt, rows spaced to clear each other's shadow at midday in December.`),
     step("The roof could hold", `${num.format(packed.kwp)} kW`),
@@ -475,7 +310,7 @@ const working = (site: PortfolioSite, outcome: Outcome): string => {
     outcome.blocked && outcome.blocked.taller > 0
       ? step("Shadow of the buildings around it", `−${pct(outcome.blocked.arrayLossOfPoa)}`, "is-cap")
       : "",
-    step("Inverter, wiring, availability, mismatch", `−${pct(1 - 0.97 * 0.975 * 0.99 * 0.97)}`),
+    step("Inverter, wiring, availability, mismatch", `−${pct(systemLoss)}`),
     step("Generated in year one", kwh(best.simulation.generationKwh), "is-total"),
   ].join("");
 
@@ -531,11 +366,22 @@ const inputRow = (label: string, value: string, source: string, chip: string, te
 
 const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
   if (!outcome) {
+    const failed = failures.get(site.id);
     byId("renewable-site").innerHTML = "";
-    byId("verdict").innerHTML = `<p class="note">Running the numbers for this site…</p>`;
+    byId("verdict").innerHTML = failed
+      ? `<div class="verdict">
+          <span class="dot is-${failed.status}"></span>
+          <div class="verdict-text">
+            <b>${esc(failed.headline)}</b>
+            <p>${esc(failed.reason)}</p>
+          </div>
+        </div>`
+      : `<p class="note">Running the numbers for this site…</p>`;
     byId("kpis").innerHTML = "";
     byId("working").innerHTML = "";
     byId("inputs").innerHTML = "";
+    byId("register").innerHTML = "";
+    byId("register-summary").textContent = "";
     byId("trust").innerHTML = "";
     return;
   }
@@ -600,6 +446,35 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
   for (const button of byId("inputs").querySelectorAll<HTMLButtonElement>("[data-term]")) {
     button.addEventListener("click", () => openTerm(button.dataset.term!));
   }
+
+  const register = assumptionRegister(outcome.result);
+  byId("register-summary").textContent = registerSummary(register);
+  byId("register").innerHTML = register
+    .map((entry) => {
+      const chip =
+        entry.kind === "authority"
+          ? "is-authority"
+          : entry.kind === "assumption" || entry.kind === "model"
+            ? "is-assumed"
+            : "is-measured";
+      const detail = [
+        entry.provenance.label,
+        entry.provenance.asOf ? `as of ${entry.provenance.asOf}` : null,
+        entry.provenance.caveat,
+        entry.swingAed ? `moves NPV by up to ${aed(entry.swingAed)}` : null,
+        entry.howToResolve,
+      ]
+        .filter(Boolean)
+        .join(" — ");
+      return `<div class="register-row">
+        <div class="register-head">
+          <div class="fact-label">${esc(entry.input)}</div>
+          <div class="fact-value">${esc(entry.value)}</div>
+        </div>
+        <div class="fact-src"><span class="chip ${chip}">${esc(entry.kind)}</span> ${esc(detail)}</div>
+      </div>`;
+    })
+    .join("");
 
   const modelled = context.weather.source === "modelled-clear-sky";
   byId("trust").innerHTML = `
@@ -714,6 +589,22 @@ const render = () => {
 const computeAll = () => {
   const requestedPortfolio = portfolio;
   const queue = [...portfolio.sites].sort((a, b) => (a.id === activeSiteId ? -1 : b.id === activeSiteId ? 1 : 0));
+
+  if (engineWorker) {
+    for (const site of queue) {
+      if (outcomes.has(site.id) || failures.has(site.id) || inflight.has(site.id)) continue;
+      inflight.add(site.id);
+      engineWorker.postMessage({
+        portfolioId: requestedPortfolio.id,
+        hurdleYears: requestedPortfolio.hurdleYears,
+        sceneOrigin: SCENES[site.sceneId].o,
+        buildings: buildingsFor(site.sceneId),
+        site,
+      });
+    }
+    return;
+  }
+
   let index = 0;
   const next = () => {
     if (renewablePortfolio || portfolio !== requestedPortfolio) return;
@@ -722,8 +613,10 @@ const computeAll = () => {
     index += 1;
     try {
       runSite(site);
+      failures.delete(site.id);
     } catch (error) {
       console.error("site failed", site.id, error);
+      failures.set(site.id, failureFor(error));
     }
     if (site.id === activeSiteId) render();
     else renderRail();

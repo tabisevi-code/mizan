@@ -15,6 +15,7 @@
     "test": "tsx --test tests/*.test.ts",
     "demo": "tsx scripts/demo.ts",
     "bake": "tsx scripts/bake.ts",
+    "bake:resource": "tsx scripts/bake-resource.ts",
     "page": "node scripts/build-page.mjs --local",
     "typecheck": "tsc --noEmit",
     "calibrate": "tsx scripts/calibrate.ts",

@@ -114,7 +114,23 @@ export type FinanceAssumptions = {
   /** Battery replacement in this year, as a share of original battery capex. */
   batteryReplacementYear: number;
   batteryReplacementShare: number;
+  /**
+   * Marginal corporate tax rate applied to net operational savings. Bill
+   * savings increase taxable profit and O&M is deductible, so both are scaled
+   * by (1 - rate). Zero for non-taxpaying customers. UAE mainland companies
+   * at or above the threshold pay 9% under Federal Decree-Law 47 of 2022.
+   */
+  corporateTaxRate: number;
   analysisYears: number;
+};
+
+export const CORPORATE_TAX_SOURCE: Provenance = {
+  kind: "authority",
+  label: "UAE Corporate Tax — Federal Decree-Law No. 47 of 2022",
+  url: "https://mof.gov.ae/corporate-tax-faq/",
+  asOf: "2026-09-25",
+  caveat:
+    "9% on taxable profits above AED 375,000, effective for financial years starting on or after 1 June 2023. Qualifying free-zone income can be 0%. The engine scales net savings by (1 - rate) — it does not model depreciation allowances.",
 };
 
 export const DEFAULT_FINANCE: FinanceAssumptions = {
@@ -126,6 +142,7 @@ export const DEFAULT_FINANCE: FinanceAssumptions = {
   inverterReplacementAedPerKw: 300,
   batteryReplacementYear: 12,
   batteryReplacementShare: 0.5,
+  corporateTaxRate: 0,
   analysisYears: 25,
 };
 
@@ -209,7 +226,8 @@ export const evaluateFinance = (input: FinanceInput): FinanceResult => {
         : 0;
     const replacementAed = batteryReplacementAed + inverterReplacementAed;
 
-    const netAed = savingsAed - omAed - replacementAed;
+    const netAed =
+      (savingsAed - omAed) * (1 - assumptions.corporateTaxRate) - replacementAed;
     cumulative += netAed;
     lifetimeSavings += netAed;
     flows.push(netAed);

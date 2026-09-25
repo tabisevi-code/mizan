@@ -7,6 +7,7 @@ import { buildCapex, evaluateFinance, solarCostPerKw } from "../src/engine/finan
 import { buildLoadProfile } from "../src/engine/load.ts";
 import { plan } from "../src/engine/plan.ts";
 import { DEFAULT_PV_LOSSES, simulateArray } from "../src/engine/pv.ts";
+import { HYDRO_TURBINE_EFFICIENCY } from "../src/engine/renewable-combinations.ts";
 import { RULE_SETS, regulatoryCap, screenTechnologies } from "../src/engine/rules.ts";
 import { clearSkyGhi, declination, modelledWeatherYear, solarPosition } from "../src/engine/solar.ts";
 import { annualBill, marginalRate, selectTariff, TARIFFS } from "../src/engine/tariff.ts";
@@ -186,23 +187,59 @@ test("a Dubai bill adds VAT and the meter charge", () => {
 
 // --- rules -----------------------------------------------------------------
 
-test("Dubai forbids ground mount and caps capacity at the lower of approved load and 2,080 kW", () => {
+test("Dubai forbids ground mount and caps capacity by the DRRG slab share of connected load", () => {
   assert.equal(RULE_SETS.dubai.groundMountPermitted, false);
 
-  const site = makeSite({ approvedLoadKw: 1200 });
-  assert.equal(regulatoryCap(site).capKw, 1200);
-  assert.equal(regulatoryCap(site).bindingRule, "approved-load");
+  // DRRG v4.1 s2.2: 100% of the first 100 kW, 75% of 100-200, 50% of 200-400,
+  // 25% of 400-600, 5% above 600, ceiling 1,000 kW.
+  const small = makeSite({ approvedLoadKw: 80 });
+  assert.equal(regulatoryCap(small).capKw, 80);
 
-  const bigSite = makeSite({ approvedLoadKw: 5000 });
-  assert.equal(regulatoryCap(bigSite).capKw, 2080);
-  assert.equal(regulatoryCap(bigSite).bindingRule, "plot-cap");
+  const site = makeSite({ approvedLoadKw: 1200 });
+  assert.equal(regulatoryCap(site).capKw, 355);
+  assert.equal(regulatoryCap(site).bindingRule, "tcl-slab");
+
+  const mid = makeSite({ approvedLoadKw: 600 });
+  assert.equal(regulatoryCap(mid).capKw, 325);
+
+  const hugeSite = makeSite({ approvedLoadKw: 20000 });
+  assert.equal(regulatoryCap(hugeSite).capKw, 1000);
+  assert.equal(regulatoryCap(hugeSite).bindingRule, "tcl-slab");
 });
 
-test("an unknown approved load is reported rather than assumed away", () => {
+test("an unknown approved load leaves only the published per-plot ceiling", () => {
   const site = makeSite({ approvedLoadKw: undefined });
   const cap = regulatoryCap(site);
-  assert.equal(cap.capKw, 2080);
+  assert.equal(cap.capKw, 1000);
   assert.equal(cap.bindingRule, "plot-cap");
+});
+
+test("every emirate resolves a tariff", () => {
+  for (const emirate of [
+    "dubai",
+    "abu-dhabi",
+    "sharjah",
+    "ajman",
+    "umm-al-quwain",
+    "ras-al-khaimah",
+    "fujairah",
+  ] as const) {
+    const commercial = selectTariff({ emirate, customerClass: "commercial" });
+    const industrial = selectTariff({ emirate, customerClass: "industrial" });
+    assert.ok(commercial, `no commercial tariff for ${emirate}`);
+    assert.ok(industrial, `no industrial tariff for ${emirate}`);
+  }
+});
+
+test("EtihadWE and SEWA slab rates match the published schedules", () => {
+  const rak = selectTariff({ emirate: "ras-al-khaimah", customerClass: "commercial" })!;
+  assert.equal(rak.id, "etihadwe-commercial");
+  assert.equal(marginalRate(rak, 500, 0), 0.23 + 0.05);
+  assert.equal(marginalRate(rak, 20000, 0), 0.38 + 0.05);
+
+  const sewa = selectTariff({ emirate: "sharjah", customerClass: "commercial" })!;
+  assert.equal(marginalRate(sewa, 500, 0), 0.23 + 0.06);
+  assert.equal(marginalRate(sewa, 20000, 0), 0.38 + 0.06);
 });
 
 test("ground solar screens as not permitted in Dubai however much land there is", () => {
@@ -220,6 +257,14 @@ test("marine and geothermal options screen out with a reason, not a slider", () 
     assert.equal(screen.status, "not-viable");
     assert.ok(screen.reason.length > 30, `${id} needs a real reason`);
   }
+});
+
+test("hydro screening uses the same turbine efficiency as the yield model", () => {
+  const site = makeSite({ evidence: { ...emptyEvidence, hydro: { flowCms: 1, headM: 10 } } });
+  const hydro = screenTechnologies(site, 20000, 0).find((item) => item.id === "hydro")!;
+  assert.equal(hydro.status, "needs-evidence");
+  assert.match(hydro.reason, /roughly 64 kW/);
+  assert.equal(Math.round(9.81 * 1 * 10 * HYDRO_TURBINE_EFFICIENCY), 64);
 });
 
 // --- dispatch --------------------------------------------------------------
@@ -1430,4 +1475,160 @@ test("the clearness index is the measured one, and holds outside the fitted band
   const middle = clearnessFor((low + high) / 2);
   assert.ok(middle[6] < middle[0], "July should be hazier than January");
   assert.ok(CLEARNESS_FIT.previousAnnualError > CLEARNESS_FIT.crossValidatedAnnualError * 3);
+});
+
+// --- UAE resource layer ------------------------------------------------------
+
+test("the baked resource grid returns a point near every UAE site", async () => {
+  const { resourcePointFor } = await import("../src/engine/resource.ts");
+  const point = resourcePointFor(JEBEL_ALI);
+  assert.ok(Math.abs(point.lat - JEBEL_ALI.lat) <= 0.4);
+  assert.ok(Math.abs(point.lng - JEBEL_ALI.lng) <= 0.4);
+  assert.equal(point.ghiKwhM2Day.length, 12);
+  assert.ok(point.ghiKwhM2Day.every((v) => v > 2 && v < 9), "UAE GHI should sit in the 2-9 band");
+});
+
+test("the measured weather year tracks the grid's irradiation, not a constant", async () => {
+  const { resourcePointFor, weatherYearFor, measuredGhiDaily } = await import("../src/engine/resource.ts");
+  const weather = weatherYearFor(JEBEL_ALI);
+  assert.equal(weather.source, "nasa-power-climatology");
+  // weather.ghi is Wh/m2 summed over hours; the grid's figure is kWh/m2/day.
+  const annual = sum(weather.ghi) / 1000;
+  const measuredAnnual = measuredGhiDaily(JEBEL_ALI).reduce((t, m, i) => t + m * [31,28,31,30,31,30,31,31,30,31,30,31][i], 0);
+  // Modelled hours cannot exceed measured means by more than a few percent.
+  assert.ok(Math.abs(annual - measuredAnnual) / measuredAnnual < 0.08,
+    `modelled ${annual.toFixed(0)} vs measured ${measuredAnnual.toFixed(0)}`);
+  // Al Ain is further inland: its GHI must differ from the coast's.
+  const inland = resourcePointFor({ lat: 24.2, lng: 55.7 });
+  const coast = resourcePointFor(JEBEL_ALI);
+  assert.notDeepEqual(inland.ghiKwhM2Day, coast.ghiKwhM2Day);
+});
+
+test("wind shear lifts hub-height speed and Rayleigh CF stays sane", async () => {
+  const { rayleighCapacityFactor, windAtHeight, windMonthlyKwhPerKw } = await import("../src/engine/resource.ts");
+  assert.ok(windAtHeight(4, 10, 50) > 4);
+  // A 2 m/s mean still has a Rayleigh tail above cut-in, but it is tiny.
+  assert.ok(rayleighCapacityFactor(2) < 0.05, `2 m/s CF ${rayleighCapacityFactor(2)} too high`);
+  const cf = rayleighCapacityFactor(7);
+  assert.ok(cf > 0.15 && cf < 0.7, `CF ${cf} implausible for 7 m/s`);
+  const monthly = windMonthlyKwhPerKw(JEBEL_ALI);
+  assert.equal(monthly.length, 12);
+  assert.ok(monthly.every((v) => v >= 0 && v <= 744));
+});
+
+test("the measured UAE soiling curve replaces the assumed daily rate", async () => {
+  const { endOfCycleSoilingLoss, meanSoilingLoss } = await import("../src/engine/pv.ts");
+  assert.equal(endOfCycleSoilingLoss(15), 0.04);
+  assert.equal(endOfCycleSoilingLoss(90), 0.13);
+  const measured = meanSoilingLoss({ ...DEFAULT_PV_LOSSES, cleaningIntervalDays: 30 });
+  assert.ok(measured > 0.02 && measured < 0.08, `30-day mean loss was ${measured}`);
+  const manual = meanSoilingLoss({ ...DEFAULT_PV_LOSSES, useMeasuredUaeSoiling: false });
+  assert.ok(Math.abs(manual - (0.0035 * 21) / 2) < 1e-9);
+});
+
+test("an unreachable energy target names the constraint and the shortfall", async () => {
+  const { plan } = await import("../src/engine/plan.ts");
+  // Asking for 90% coverage on a 5 GWh load needs ~4.5 GWh self-consumed —
+  // far more than this roof and a 1,000 kW ceiling can deliver.
+  const result = plan(makeSite({ energyTargetShare: 0.9 }));
+  assert.ok(result.infeasibility, "expected the target to be flagged unreachable");
+  assert.equal(result.infeasibility!.requiredKwh, 4_500_000);
+  assert.ok(result.infeasibility!.shortfallKwh > 0);
+  assert.ok(result.infeasibility!.explanation.length > 30);
+
+  // A modest target is met and the cheapest meeting option is offered.
+  const modest = plan(makeSite({ energyTargetShare: 0.05 }));
+  assert.equal(modest.infeasibility, null);
+  assert.ok(modest.targetOption, "expected a meeting option");
+  assert.ok(modest.targetOption!.simulation.selfConsumedKwh >= 0.05 * 5_000_000);
+});
+
+test("bill intake proposes fields and applies only confirmed ones", async () => {
+  const { extractBill, applyBillProposal } = await import("../src/engine/intake.ts");
+  const bill = [
+    "DEWA — Dubai Electricity and Water Authority",
+    "Commercial account statement",
+    "Total Approved Load    1,200 kW",
+    "JAN-25   380,000 kWh",
+    "FEB-25   350,000 kWh",
+    "MAR-25   410,000 kWh",
+    "APR-25   450,000 kWh",
+    "MAY-25   520,000 kWh",
+    "JUN-25   560,000 kWh",
+    "JUL-25   610,000 kWh",
+    "AUG-25   600,000 kWh",
+    "SEP-25   540,000 kWh",
+    "OCT-25   470,000 kWh",
+    "NOV-25   400,000 kWh",
+    "DEC-25   390,000 kWh",
+  ].join("\n");
+  const proposal = extractBill(bill);
+  assert.equal(proposal.utility, "dewa");
+  const monthly = proposal.fields.find((f) => f.key === "monthlyKwh");
+  assert.ok(monthly, "expected a monthly consumption proposal");
+  assert.equal(monthly!.monthlyKwh!.length, 12);
+  assert.equal(monthly!.annualKwh, 5_680_000);
+  assert.ok(proposal.fields.some((f) => f.key === "approvedLoadKw" && f.approvedLoadKw === 1200));
+  assert.ok(proposal.fields.some((f) => f.key === "emirate" && f.emirate === "dubai"));
+
+  // Nothing lands unconfirmed.
+  const site = makeSite();
+  const untouched = applyBillProposal(site, proposal, []);
+  assert.equal(untouched.annualKwh, site.annualKwh);
+  assert.equal(untouched.monthlyKwh, undefined);
+
+  const applied = applyBillProposal(site, proposal, ["monthlyKwh", "approvedLoadKw"]);
+  assert.equal(applied.annualKwh, 5_680_000);
+  assert.equal(applied.approvedLoadKw, 1200);
+  assert.equal(applied.evidence.hasIntervalMeterData, true);
+  assert.equal(applied.emirate, site.emirate); // emirate not confirmed
+});
+
+test("a partial year of bills is noted, not proposed", async () => {
+  const { extractBill } = await import("../src/engine/intake.ts");
+  const bill = "EtihadWE bill\nJAN 12,000 kWh\nFEB 11,000 kWh\nTotal Approved Load 800 kW";
+  const proposal = extractBill(bill);
+  assert.equal(proposal.utility, "etihadwe");
+  assert.ok(!proposal.fields.some((f) => f.key === "monthlyKwh"));
+  assert.ok(proposal.notes.length >= 1);
+});
+
+test("the assumption register lists every input with provenance", async () => {
+  const { plan } = await import("../src/engine/plan.ts");
+  const { assumptionRegister, registerSummary } = await import("../src/engine/register.ts");
+  const result = plan(makeSite());
+  const register = assumptionRegister(result);
+  assert.ok(register.length >= 7);
+  assert.ok(register.every((entry) => entry.provenance.kind === entry.kind));
+  const inputs = register.map((entry) => entry.input);
+  assert.ok(inputs.includes("Installed cost"));
+  assert.ok(inputs.includes("Utility tariff"));
+  assert.ok(inputs.some((i) => i === "Regulatory cap and scheme rules"));
+  // Facts sort before assumptions.
+  const kinds = register.map((entry) => entry.kind);
+  const firstAssumption = kinds.indexOf("assumption");
+  assert.ok(kinds.slice(0, firstAssumption).every((k) => k !== "assumption"));
+  assert.ok(registerSummary(register).length > 10);
+});
+
+test("corporate tax scales net savings when set", async () => {
+  const { evaluateFinance } = await import("../src/engine/finance.ts");
+  const base = evaluateFinance({
+    capexAed: 1_000_000,
+    batteryCapexAed: 0,
+    installedKw: 500,
+    firstYearSavingsAed: 200_000,
+    firstYearGenerationKwh: 800_000,
+  });
+  const taxed = evaluateFinance({
+    capexAed: 1_000_000,
+    batteryCapexAed: 0,
+    installedKw: 500,
+    firstYearSavingsAed: 200_000,
+    firstYearGenerationKwh: 800_000,
+    assumptions: { corporateTaxRate: 0.09 },
+  });
+  assert.ok(taxed.npvAed < base.npvAed);
+  // Year-1 net: (200,000 - 500*55) * 0.91 = 156,975
+  assert.ok(Math.abs(taxed.cashflow[0].netAed - 156_975) < 1);
 });

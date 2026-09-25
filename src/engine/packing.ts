@@ -8,6 +8,8 @@
  * that actually fit, not an area multiplied by a coverage factor.
  */
 
+import { EAST_WEST_PITCH_FACTOR } from "./capacity";
+
 export type PointM = [number, number];
 export type PolygonM = PointM[];
 
@@ -216,7 +218,7 @@ const scanline = (polygon: PolygonM, y: number): [number, number][] => {
  */
 export const rowPitchM = (options: PackOptions, latitudeDeg: number): number => {
   const depth = options.moduleHeightM * Math.cos((options.tiltDeg * Math.PI) / 180);
-  if (options.layout === "east-west") return depth * 1.08;
+  if (options.layout === "east-west") return depth * EAST_WEST_PITCH_FACTOR;
   const noonAltitude = Math.max(5, 90 - Math.abs(latitudeDeg) - 23.45);
   const rise = options.moduleHeightM * Math.sin((options.tiltDeg * Math.PI) / 180);
   return depth + rise / Math.tan((noonAltitude * Math.PI) / 180);
