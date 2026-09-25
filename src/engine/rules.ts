@@ -7,6 +7,7 @@
  * `confidence: "unverified"` so the UI can say so rather than bluff.
  */
 
+import { HYDRO_TURBINE_EFFICIENCY } from "./renewable-combinations";
 import type {
   ScreenStatus,
   Emirate,
@@ -349,7 +350,7 @@ export const screenTechnologies = (site: SiteProfile, roofAreaM2: number, ground
   });
 
   const hydro = evidence.hydro;
-  const hydroKw = hydro ? 9.81 * hydro.flowCms * hydro.headM * 0.68 : 0;
+  const hydroKw = hydro ? 9.81 * hydro.flowCms * hydro.headM * HYDRO_TURBINE_EFFICIENCY : 0;
   results.push({
     id: "hydro",
     label: "Micro hydro",

@@ -29,8 +29,11 @@ export function calculateFinancial(capexAed: number, grossSavingsAed: number, an
     annualRoi: capexAed > 0 ? netSavingsAed / capexAed : null };
 }
 
+/** Water-to-wire efficiency η of a micro-hydro turbine and generator. */
+export const HYDRO_TURBINE_EFFICIENCY = 0.65;
+
 /** Physical hydro model: ρgQHη, capped by turbine rating; no pumped-storage credit. */
-export function hydroMonthlyYield(capacityKw: number, headM: number, flowCms: number[], efficiency = 0.65): number[] {
+export function hydroMonthlyYield(capacityKw: number, headM: number, flowCms: number[], efficiency = HYDRO_TURBINE_EFFICIENCY): number[] {
   nonnegative(capacityKw, "Hydro capacity"); nonnegative(headM, "Head"); months(flowCms, "Flow");
   if (!Number.isFinite(efficiency) || efficiency <= 0 || efficiency > 1) throw new Error("Efficiency must be in (0, 1]");
   return flowCms.map((flow, m) => capacityKw === 0 ? 0 : Math.min(capacityKw, 9.81 * flow * headM * efficiency) * MONTH_HOURS[m] / capacityKw);
