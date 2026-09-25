@@ -22,6 +22,7 @@ import {
   avoidedCo2Tonnes,
   buildCapex,
   comparePpa,
+  DEFAULT_FINANCE,
   DEFAULT_PPA,
   evaluateFinance,
   type CapexLine,
@@ -44,7 +45,7 @@ import {
   type CapResult,
   type StructuralVerdict,
 } from "./rules";
-import { modelledWeatherYear, type WeatherYear } from "./solar";
+import { buildSolarYear, modelledWeatherYear, type SolarYear, type WeatherYear } from "./solar";
 import { annualBill, selectTariff, type Tariff } from "./tariff";
 import {
   BASE_FACTORS,
@@ -121,6 +122,12 @@ export type PlanResult = {
   uncertainty: UncertaintyResult | null;
   sensitivity: SensitivityEntry[];
   ppa: OwnershipComparison | null;
+  /**
+   * Why the plan came back without options, when it did. "no-tariff" means the
+   * emirate has no modelled tariff — the context still carries screens, cap
+   * and yield, so the UI can say so rather than show an empty page.
+   */
+  planUnavailableReason?: "no-tariff";
 };
 
 const EMPTY_FIT: ArrayFit = {
@@ -186,13 +193,15 @@ export const buildContext = (
   site: SiteProfile,
   weather?: WeatherYear,
   packed?: CapacityOverride,
+  solarYear?: SolarYear,
 ): PlanContext => {
   const roofAreaM2 = ringsAreaM2(site.roofRings);
   const groundAreaM2 = ringsAreaM2(site.groundRings);
   const screens = screenTechnologies(site, roofAreaM2, groundAreaM2);
   const structure = screenStructure(site.roofConstruction);
   const cap = regulatoryCap(site);
-  const resolvedWeather = weather ?? modelledWeatherYear(site.location);
+  const sun = solarYear ?? buildSolarYear(site.location);
+  const resolvedWeather = weather ?? modelledWeatherYear(site.location, sun);
 
   const load = buildLoadProfile({
     sector: site.sector,
@@ -203,7 +212,9 @@ export const buildContext = (
   const tariff = selectTariff({
     emirate: site.emirate,
     customerClass: site.customerClass,
-    peakDemandKw: load.peakKw,
+    // The 1 MW tariff band turns on the contracted load on the account, not on
+    // a modelled peak that a smooth sector shape always understates.
+    peakDemandKw: site.approvedLoadKw ?? load.peakKw,
   });
 
   const roofFit: Record<ArrayLayout, ArrayFit> = {
@@ -233,25 +244,41 @@ export const buildContext = (
     site.location,
     resolvedWeather,
     { kwp: 1, tiltDeg: DEFAULT_ROOF_TILT_DEG, azimuthDeg: 0, mounting: "roof-flat", dcAcRatio: 1.2 },
+    undefined,
+    0,
+    sun,
   );
   const east = simulateArray(
     site.location,
     resolvedWeather,
     { kwp: 0.5, tiltDeg: DEFAULT_ROOF_TILT_DEG, azimuthDeg: -90, mounting: "roof-flat", dcAcRatio: 1.2 },
+    undefined,
+    0,
+    sun,
   );
   const west = simulateArray(
     site.location,
     resolvedWeather,
     { kwp: 0.5, tiltDeg: DEFAULT_ROOF_TILT_DEG, azimuthDeg: 90, mounting: "roof-flat", dcAcRatio: 1.2 },
+    undefined,
+    0,
+    sun,
   );
   const eastWest = combine(east.hourlyAcKw, west.hourlyAcKw, 1, 1);
-  const ground = simulateArray(site.location, resolvedWeather, {
-    kwp: 1,
-    tiltDeg: DEFAULT_GROUND_TILT_DEG,
-    azimuthDeg: 0,
-    mounting: "ground",
-    dcAcRatio: 1.2,
-  });
+  const ground = simulateArray(
+    site.location,
+    resolvedWeather,
+    {
+      kwp: 1,
+      tiltDeg: DEFAULT_GROUND_TILT_DEG,
+      azimuthDeg: 0,
+      mounting: "ground",
+      dcAcRatio: 1.2,
+    },
+    undefined,
+    0,
+    sun,
+  );
 
   let eastWestAnnual = 0;
   for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) eastWestAnnual += eastWest[hour];
@@ -371,7 +398,7 @@ export const evaluateSizing = (
     assumptions: {
       tariffEscalation: factors.tariffEscalation,
       degradationPerYear: factors.degradationPerYear,
-      omAedPerKwYear: 55 * factors.omFactor,
+      omAedPerKwYear: DEFAULT_FINANCE.omAedPerKwYear * factors.omFactor,
     },
   });
 
@@ -407,10 +434,19 @@ export const plan = (
   weather?: WeatherYear,
   ppaTerms: PpaTerms = DEFAULT_PPA,
   packed?: CapacityOverride,
+  solarYear?: SolarYear,
 ): PlanResult => {
-  const context = buildContext(site, weather, packed);
+  const context = buildContext(site, weather, packed, solarYear);
   if (!context.tariff) {
-    return { context, options: [], best: null, uncertainty: null, sensitivity: [], ppa: null };
+    return {
+      context,
+      options: [],
+      best: null,
+      uncertainty: null,
+      sensitivity: [],
+      ppa: null,
+      planUnavailableReason: "no-tariff",
+    };
   }
 
   const dailyKwh = context.load.annualKwh / 365;
@@ -433,7 +469,40 @@ export const plan = (
   }
 
   options.sort((a, b) => b.finance.npvAed - a.finance.npvAed);
-  const best = options[0] ?? null;
+  let best = options[0] ?? null;
+
+  if (best) {
+    // The quarter-roof ladder can step straight over the NPV optimum. Probe a
+    // half-rung either side of the winner — same layout, ground and battery —
+    // and keep the better one. Two extra evaluations, nothing more.
+    const roofCeiling = Math.min(context.roofFit[best.sizing.layout].kwp, context.cap.capKw);
+    const halfStep = roofCeiling * 0.125;
+    for (const candidate of [
+      best.sizing.roofSolarKwp - halfStep,
+      best.sizing.roofSolarKwp + halfStep,
+    ]) {
+      const roofSolarKwp = Math.round(candidate);
+      if (roofSolarKwp <= 0 || roofSolarKwp >= roofCeiling) continue;
+      if (roofSolarKwp === best.sizing.roofSolarKwp) continue;
+      if (roofSolarKwp + best.sizing.groundSolarKwp > context.cap.capKw) continue;
+      if (
+        options.some(
+          (o) =>
+            o.sizing.roofSolarKwp === roofSolarKwp &&
+            o.sizing.layout === best!.sizing.layout &&
+            o.sizing.groundSolarKwp === best!.sizing.groundSolarKwp &&
+            o.sizing.batteryKwh === best!.sizing.batteryKwh,
+        )
+      )
+        continue;
+      const option = evaluateSizing(context, { ...best.sizing, roofSolarKwp });
+      if (!option) continue;
+      if (site.budgetAed && option.capex.totalAed > site.budgetAed) continue;
+      options.push(option);
+      if (option.finance.npvAed > best.finance.npvAed) best = option;
+    }
+    options.sort((a, b) => b.finance.npvAed - a.finance.npvAed);
+  }
 
   if (!best) {
     return { context, options, best: null, uncertainty: null, sensitivity: [], ppa: null };

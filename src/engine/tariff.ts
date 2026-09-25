@@ -10,6 +10,7 @@
  * to lose a room.
  */
 
+import { MONTH_OF_HOUR, monthOfHour } from "./calendar";
 import type { CustomerClass, Emirate, HourlySeries, Provenance } from "./types";
 import { HOURS_PER_YEAR } from "./types";
 
@@ -176,16 +177,20 @@ export const selectTariff = (selection: TariffSelection): Tariff | null => {
   return candidates[0];
 };
 
-const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-/** Month index 0-11 for an hour of the year. */
-const monthIndex = (hourOfYear: number): number => {
-  let remaining = Math.floor(hourOfYear / 24) + 1;
-  for (let month = 0; month < 12; month += 1) {
-    if (remaining <= MONTH_LENGTHS[month]) return month;
-    remaining -= MONTH_LENGTHS[month];
-  }
-  return 11;
+/**
+ * Whether an hour falls inside the tariff's time-of-use peak window.
+ * Shared by the billing code here and the battery dispatch in `battery.ts`,
+ * so the two can never disagree about when peak is.
+ */
+export const inToUPeak = (tariff: Tariff, hourOfYear: number): boolean => {
+  if (!tariff.timeOfUse) return false;
+  const month = monthOfHour(hourOfYear) + 1;
+  const hour = hourOfYear % 24;
+  return (
+    tariff.timeOfUse.months.includes(month) &&
+    hour >= tariff.timeOfUse.startHour &&
+    hour < tariff.timeOfUse.endHour
+  );
 };
 
 /** The rate the *next* kWh in that month costs, before VAT. */
@@ -195,14 +200,9 @@ export const marginalRate = (
   hourOfYear: number,
 ): number => {
   if (tariff.timeOfUse) {
-    const month = monthIndex(hourOfYear) + 1;
-    const hour = hourOfYear % 24;
-    const inPeakMonth = tariff.timeOfUse.months.includes(month);
-    const inPeakHour = hour >= tariff.timeOfUse.startHour && hour < tariff.timeOfUse.endHour;
-    const base =
-      inPeakMonth && inPeakHour
-        ? tariff.timeOfUse.peakAedPerKwh
-        : tariff.timeOfUse.offPeakAedPerKwh;
+    const base = inToUPeak(tariff, hourOfYear)
+      ? tariff.timeOfUse.peakAedPerKwh
+      : tariff.timeOfUse.offPeakAedPerKwh;
     return base + tariff.surchargeAedPerKwh;
   }
 
@@ -234,7 +234,7 @@ export const annualBill = (tariff: Tariff, importSeries: HourlySeries): BillResu
   let monthAccumulator = 0;
 
   for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
-    const month = monthIndex(hour);
+    const month = MONTH_OF_HOUR[hour];
     if (month !== runningMonth) {
       runningMonth = month;
       monthAccumulator = 0;

@@ -27,6 +27,7 @@
  */
 
 import { moduleTemperature } from "./solar";
+import { thinRows } from "./shading";
 import type { Emirate, Provenance } from "./types";
 import { pointInPolygon, type PanelRow, type PointM, type PolygonM } from "./packing";
 
@@ -264,6 +265,8 @@ export type StringSizing = {
   hotCellC: number;
   /** Module Voc at the record low, V. */
   vocColdV: number;
+  /** Module Vmp at the record low, V: the top of the tracker's working range. */
+  vmpColdV: number;
   /** Module Vmp at the hot cell temperature, V. */
   vmpHotV: number;
   maxModulesPerString: number;
@@ -274,6 +277,8 @@ export type StringSizing = {
   modulesPerString: number;
   /** Worst-case string voltage the inverter will see, V. */
   stringVocColdV: number;
+  /** String working voltage at the cold design point, V. */
+  stringVmpColdV: number;
   /** String voltage at the hot design point, V. */
   stringVmpHotV: number;
   /** Headroom under the inverter's absolute limit, as a fraction. */
@@ -297,6 +302,10 @@ export const sizeString = (
   );
 
   const vocColdV = vocAt(module, temperatures.recordLowC);
+  // Under load on the record-low morning the cell sits near ambient: irradiance
+  // is what warms a module, and first-light sun is weak. That makes this the
+  // highest working voltage the tracker will ever see.
+  const vmpColdV = vmpAt(module, temperatures.recordLowC);
   const vmpHotV = vmpAt(module, hotCellC);
   const iscHotA = iscAt(module, hotCellC);
 
@@ -311,6 +320,7 @@ export const sizeString = (
   // cable and less current, so length is worth taking where it is legal.
   const modulesPerString = feasible ? maxModulesPerString : 0;
   const stringVocColdV = modulesPerString * vocColdV;
+  const stringVmpColdV = modulesPerString * vmpColdV;
   const stringVmpHotV = modulesPerString * vmpHotV;
 
   // An MPPT input accepts a current, and two strings in parallel double it.
@@ -335,6 +345,11 @@ export const sizeString = (
       `${modulesPerString} modules per string: ${Math.round(stringVocColdV)} V worst case cold, ${Math.round(stringVmpHotV)} V working hot.`,
     );
   }
+  if (feasible && stringVmpColdV > inverter.mpptMaxV) {
+    notes.push(
+      `On the coldest morning the string works at ${Math.round(stringVmpColdV)} V, above the ${inverter.mpptMaxV} V the tracker will follow. Nothing is damaged, but the inverter leaves the maximum-power point until the modules warm. Shortening the string conflicts with the hot limit, so prefer an inverter with a wider window.`,
+    );
+  }
   if (feasible && hotMargin < 0.1) {
     notes.push(
       `The hot limit is on a knife edge: ${rawMinModules.toFixed(2)} modules are needed and ${minModulesPerString} is the next whole number. A design day ${((hotMargin / Math.max(rawMinModules, 1)) * 100).toFixed(1)}% hotter, or a module with a slightly steeper voltage coefficient, pushes the minimum to ${minModulesPerString + 1}. Confirm the module's temperature coefficient before committing to ${minModulesPerString}.`,
@@ -352,12 +367,14 @@ export const sizeString = (
     temperatures,
     hotCellC,
     vocColdV,
+    vmpColdV,
     vmpHotV,
     maxModulesPerString,
     minModulesPerString,
     rawMinModules,
     modulesPerString,
     stringVocColdV,
+    stringVmpColdV,
     stringVmpHotV,
     voltageHeadroom: 1 - stringVocColdV / inverter.maxSystemVdc,
     stringsPerMppt,
@@ -502,15 +519,17 @@ export const DC_DROP_TARGET = 0.01;
 export const TARGET_DC_AC_RATIO = 1.2;
 
 const chooseCable = (lengthM: number, currentA: number, stringVoltageV: number): CableRun => {
-  for (const size of CABLE_SIZES_MM2) {
-    // Both conductors, so twice the one-way length.
+  // Both conductors, so twice the one-way length.
+  const dropFor = (size: number): number => {
     const drop = (2 * lengthM * currentA * COPPER_RHO) / size;
-    const fraction = stringVoltageV > 0 ? drop / stringVoltageV : 1;
-    if (fraction <= DC_DROP_TARGET || size === CABLE_SIZES_MM2[CABLE_SIZES_MM2.length - 1]) {
-      return { crossSectionMm2: size, lengthM, dropFraction: fraction };
-    }
-  }
-  return { crossSectionMm2: 25, lengthM, dropFraction: 1 };
+    return stringVoltageV > 0 ? drop / stringVoltageV : 1;
+  };
+  // The largest size is taken even above target; the caller warns when the
+  // worst run still misses the 1% drop target.
+  const size =
+    CABLE_SIZES_MM2.find((candidate) => dropFor(candidate) <= DC_DROP_TARGET) ??
+    CABLE_SIZES_MM2[CABLE_SIZES_MM2.length - 1];
+  return { crossSectionMm2: size, lengthM, dropFraction: dropFor(size) };
 };
 
 // --- the whole design ------------------------------------------------------
@@ -569,18 +588,15 @@ export const designElectrical = (input: DesignInput): ElectricalDesign => {
   // A system smaller than the roof could hold is built as whole rows spread
   // across the roof, never as every other panel within a row: an array with
   // gaps down each row would need more rail, more cable and more labour for
-  // the same output. Dropping rows is what actually gets built.
+  // the same output. Dropping rows is what actually gets built, and it is the
+  // same thinning rule the shading model uses.
   const total = input.rows.reduce((count, row) => count + row.modules, 0);
   const keep =
     input.moduleLimit !== undefined && input.moduleLimit < total ? input.moduleLimit / total : 1;
-  const chosen: { row: PanelRow; index: number }[] = [];
-  let carried = 0;
-  input.rows.forEach((row, index) => {
-    carried += keep;
-    if (carried < 1) return;
-    carried -= 1;
-    chosen.push({ row, index });
-  });
+  const thinned = new Set(thinRows(input.rows, keep));
+  const chosen = input.rows
+    .map((row, index) => ({ row, index }))
+    .filter((item) => thinned.has(item.row));
 
   // moduleSequence numbers rows as it receives them, so the indices are
   // mapped back to the roof's own row numbering before anything else sees
@@ -684,6 +700,26 @@ export const designElectrical = (input: DesignInput): ElectricalDesign => {
     strings.push({ index: s, inverter, mppt, modules, path, homeRunPath, seriesLengthM, homeRunM });
   }
 
+  // A tracker input may only parallel strings of the same length, up to
+  // `stringsPerMppt` of them. The round-robin assignment above can
+  // occasionally land a short string on an input already carrying a full
+  // pair; move it to the next free input on that inverter.
+  const mpptOccupancy = new Map<number, Map<number, { length: number; count: number }>>();
+  let mpptReassigned = 0;
+  for (const run of strings) {
+    const slots = mpptOccupancy.get(run.inverter) ?? new Map();
+    mpptOccupancy.set(run.inverter, slots);
+    const conflicts = (slot: { length: number; count: number } | undefined): boolean =>
+      slot !== undefined &&
+      (slot.length !== run.modules.length || slot.count >= sizing.stringsPerMppt);
+    const assigned = run.mppt;
+    while (conflicts(slots.get(run.mppt))) run.mppt += 1;
+    if (run.mppt !== assigned) mpptReassigned += 1;
+    const slot = slots.get(run.mppt);
+    if (slot === undefined) slots.set(run.mppt, { length: run.modules.length, count: 1 });
+    else slot.count += 1;
+  }
+
   const worstDropFraction = runs.reduce((worst, run) => Math.max(worst, run.dropFraction), 0);
   const sizesUsedMm2 = [...new Set(runs.map((run) => run.crossSectionMm2))].sort((a, b) => a - b);
 
@@ -700,6 +736,11 @@ export const designElectrical = (input: DesignInput): ElectricalDesign => {
   if (shortStrings > 0) {
     warnings.push(
       `${shortStrings} of the ${stringCount} strings are shorter than ${n} panels. Each takes a tracker input of its own rather than sharing one, because a short string and a full string on the same input pull against each other.`,
+    );
+  }
+  if (mpptReassigned > 0) {
+    warnings.push(
+      `${mpptReassigned} string${mpptReassigned === 1 ? "" : "s"} moved onto a tracker input of its own: sharing an input with a different-length string would pull both off their maximum-power point.`,
     );
   }
   const mpptNeeded = Math.max(...strings.map((run) => run.mppt), -1) + 1;

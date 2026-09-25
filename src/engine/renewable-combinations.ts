@@ -1,4 +1,16 @@
-import { MONTH_HOURS, type RenewableSource } from "../data/uae-monthly-profiles";
+/**
+ * Monthly energy-mix screening for multi-technology portfolios.
+ *
+ * This is deliberately a simpler model than the hourly path in `plan.ts` /
+ * `battery.ts`: it matches monthly energy totals, with no dispatch, no TOU
+ * windows and no battery round-trip losses. Per DEVIN.md §10 that makes its
+ * coverage numbers an optimistic ceiling on what the detailed simulation
+ * would find — right for ranking which technologies are worth a closer look,
+ * wrong for quoting a payback.
+ */
+
+import { MONTH_HOURS } from "./calendar";
+import type { RenewableSource } from "./types";
 
 export type RenewableSystem = {
   source: RenewableSource;

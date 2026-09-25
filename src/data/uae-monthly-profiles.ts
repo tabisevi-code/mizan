@@ -1,11 +1,15 @@
+import { MONTH_HOURS, monthOfHour } from "../engine/calendar";
 import { DEFAULT_ROOF_TILT_DEG, simulateArray } from "../engine/pv";
-import { modelledWeatherYear, monthOfHour } from "../engine/solar";
-import type { LatLng } from "../engine/types";
+import { modelledWeatherYear } from "../engine/solar";
+import type { LatLng, RenewableSource } from "../engine/types";
+
+// Re-exported so existing data/web call sites keep working; the definitions
+// live in the engine now (dependency direction is data -> engine).
+export { MONTH_HOURS };
+export type { RenewableSource };
 
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-export const MONTH_HOURS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31].map(d => d * 24);
-export const SOURCE_LABELS = { solar: "Solar", wind: "Wind", hydro: "Micro-hydro", geothermal: "Geothermal" };
-export type RenewableSource = keyof typeof SOURCE_LABELS;
+export const SOURCE_LABELS: Record<RenewableSource, string> = { solar: "Solar", wind: "Wind", hydro: "Micro-hydro", geothermal: "Geothermal" };
 
 /** Sensitivity assumptions, NOT measured wind resources or MERRA-2 data.
  * No seasonal complementarity is asserted without a measured time series. */

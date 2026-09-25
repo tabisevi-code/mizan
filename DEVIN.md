@@ -789,7 +789,7 @@ These are important handoff findings. They are not all regressions introduced in
 2. **Tour and chart helpers are not main-UI features.** `tour.ts` and `charts.ts` exist but are not imported by current main controller.
 3. **Bake output is not consumed.** `scripts/bake.ts` writes `snapshots.json`; that file is not part of the inspected app imports. Baking alone does not alter default cases or weather.
 4. **Overpass parser field mismatch.** `connectors/overpass.ts` expects `element.geom`; normal `out geom` Overpass JSON uses `geometry`, as the separate `web/live.ts` implementation expects. This likely explains empty parsed footprints on that connector path; add a recorded-response test before enabling it.
-5. **README/guide counts and default names drifted.** Current default is mapped projects, main picker has nine portfolios, tests total 83, and bundled legacy scenes hold 101 buildings. Older references to 63/67 tests, other defaults or larger searched building totals should not be treated as current inventory.
+5. **README/guide counts and default names drifted.** Current default is mapped projects, main picker has nine portfolios, tests total 102, and bundled legacy scenes hold 101 buildings. Older references to 63/67 tests, other defaults or larger searched building totals should not be treated as current inventory.
 6. **Package manager setup is not standardized.** Resolve the placeholder pnpm build setting and choose an intentional lockfile workflow before relying on reproducible clean installs.
 
 ### Calculation and evidence
@@ -825,7 +825,7 @@ These are important handoff findings. They are not all regressions introduced in
 The latest functional implementation verification completed with:
 
 - `npm run typecheck`: passed.
-- `npm test`: **83 passed, 0 failed**.
+- `npm test`: **102 passed, 0 failed**.
 - `npm run build`: passed, including standalone postbuild output.
 - Browser checks against the local root URL.
 
@@ -837,6 +837,7 @@ Test distribution:
 | `tests/renewables.test.ts` | 9 | Monthly energy conservation, no double-counted savings, seasonal mismatch, hydro, empty/invalid inputs, complementarity, case consistency |
 | `tests/renewable-portfolios.test.ts` | 4 | Registered original groups, unique site IDs, source consistency, wind/hydro scenarios, published warehouse hurdle sensitivity |
 | `tests/mapped-energy.test.ts` | 3 | Valid source-linked geometry and bounds, wind/biogas arithmetic, pumped-storage energy accounting and separation |
+| `tests/improvements.test.ts` | 19 | Shared calendar and weekend model, DNI clamp, MPPT upper window and input sharing, contracted-load tariff banding, no-tariff plan result, TOU holdback, degenerate outline geometry, neighbour edge-distance culling, solar-year cache equivalence, `analyzeRoof` facade, structured report + action plan, PDF document integrity |
 
 Manual browser checks performed during the implementation:
 

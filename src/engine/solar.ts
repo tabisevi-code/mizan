@@ -14,6 +14,7 @@
  *  - Module temperature: Faiman (2008), the model PVGIS also uses.
  */
 
+import { dayOfYearFromHour, monthOfHour } from "./calendar";
 import { HOURS_PER_YEAR, type HourlySeries, type LatLng, newSeries } from "./types";
 
 export const SOLAR_MODEL_NOTES = {
@@ -39,8 +40,6 @@ export type SolarPosition = {
   /** cos(zenith), floored at 0. */
   cosZenith: number;
 };
-
-const dayOfYearFromHour = (hourOfYear: number) => Math.floor(hourOfYear / 24) + 1;
 
 /** Spencer (1971) fractional year angle in radians. */
 const gamma = (dayOfYear: number) => ((2 * Math.PI) / 365) * (dayOfYear - 1);
@@ -115,11 +114,38 @@ export const solarPosition = (
   };
 };
 
-/** Extraterrestrial irradiance on a horizontal surface, W/m2. */
-export const extraterrestrialHorizontal = (dayOfYear: number, cosZenith: number): number => {
-  const eccentricity = 1 + 0.033 * Math.cos((2 * Math.PI * dayOfYear) / 365);
-  return SOLAR_CONSTANT * eccentricity * cosZenith;
+/**
+ * The sun's position at every hour of the year for one site, computed once.
+ *
+ * A single site analysis calls `solarPosition` in a dozen places — the
+ * weather year, every array simulation, every shading pass — each of which
+ * would otherwise redo the same trigonometry for the same 8,760 hours. Built
+ * once and passed in, this turns the hottest loop in the engine into a table
+ * lookup.
+ */
+export type SolarYear = {
+  /** Sun position at the midpoint of each hour of the year, indexed by hour. */
+  position: SolarPosition[];
 };
+
+export const buildSolarYear = (
+  site: LatLng,
+  utcOffsetHours = UAE_UTC_OFFSET_HOURS,
+): SolarYear => {
+  const position = new Array<SolarPosition>(HOURS_PER_YEAR);
+  for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
+    position[hour] = solarPosition(site, hour, utcOffsetHours);
+  }
+  return { position };
+};
+
+/** Extraterrestrial irradiance normal to the beam, W/m2. */
+export const extraterrestrialNormal = (dayOfYear: number): number =>
+  SOLAR_CONSTANT * (1 + 0.033 * Math.cos((2 * Math.PI * dayOfYear) / 365));
+
+/** Extraterrestrial irradiance on a horizontal surface, W/m2. */
+export const extraterrestrialHorizontal = (dayOfYear: number, cosZenith: number): number =>
+  extraterrestrialNormal(dayOfYear) * cosZenith;
 
 /** Haurwitz (1945) clear-sky global horizontal irradiance, W/m2. */
 export const clearSkyGhi = (cosZenith: number): number => {
@@ -180,7 +206,12 @@ export const transpose = (
   const kt = extra > 0 ? ghi / extra : 0;
   const diffuse = ghi * diffuseFraction(kt);
   const beamHorizontal = Math.max(0, ghi - diffuse);
-  const dni = beamHorizontal / Math.max(sun.cosZenith, 1e-3);
+  // Near the horizon the cosine division would amplify any measured GHI into
+  // an impossible beam; a real DNI cannot exceed the extraterrestrial normal.
+  const dni = Math.min(
+    beamHorizontal / Math.max(sun.cosZenith, 1e-3),
+    extraterrestrialNormal(dayOfYear),
+  );
 
   const tilt = tiltDeg * DEG;
   const surfAz = surfaceAzimuthDeg * DEG;
@@ -394,19 +425,6 @@ export const UAE_MONTHLY_WIND_MS = [
   3.6, 3.8, 3.9, 3.9, 3.8, 3.7, 3.5, 3.3, 3.2, 3.2, 3.4, 3.5,
 ];
 
-const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-/** Month index 0-11 for an hour of the year. */
-export const monthOfHour = (hourOfYear: number): number => {
-  const doy = dayOfYearFromHour(hourOfYear);
-  let remaining = doy;
-  for (let month = 0; month < 12; month += 1) {
-    if (remaining <= MONTH_LENGTHS[month]) return month;
-    remaining -= MONTH_LENGTHS[month];
-  }
-  return 11;
-};
-
 export type WeatherYear = {
   ghi: HourlySeries;
   ambientC: HourlySeries;
@@ -418,7 +436,8 @@ export type WeatherYear = {
  * Build a modelled weather year for a coordinate. Diurnal temperature follows a
  * sine with a 15:00 peak, which is the standard shape for a desert coast.
  */
-export const modelledWeatherYear = (site: LatLng): WeatherYear => {
+export const modelledWeatherYear = (site: LatLng, sun?: SolarYear): WeatherYear => {
+  const solarYear = sun ?? buildSolarYear(site);
   const clearness = clearnessFor(site.lat);
   const ghi = newSeries();
   const ambientC = newSeries();
@@ -426,7 +445,7 @@ export const modelledWeatherYear = (site: LatLng): WeatherYear => {
 
   for (let hour = 0; hour < HOURS_PER_YEAR; hour += 1) {
     const month = monthOfHour(hour);
-    const sun = solarPosition(site, hour);
+    const sun = solarYear.position[hour];
     const clear = clearSkyGhi(sun.cosZenith);
     // Haurwitz already describes a clear sky, so the clearness index is applied
     // as a ratio to its own clear-sky maximum of roughly 0.75.

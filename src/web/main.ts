@@ -11,19 +11,21 @@
  * tool that shows nothing until they do is a tool nobody sees working.
  */
 
-import { metresToLngLat, packRoof, plantPositions, type PolygonM } from "../engine/packing";
+import { metresToLngLat, plantPositions, type PackResult, type PolygonM } from "../engine/packing";
 import { SECTOR_LABELS } from "../engine/load";
-import { plan, type CapacityOverride, type PlanResult } from "../engine/plan";
+import { analyzeRoof } from "../engine/analyze";
+import { type PlanResult } from "../engine/plan";
+import { buildReport } from "../engine/report";
+import { siteReportPdf } from "./pdf-report";
 import { RULE_SETS, labelEmirate } from "../engine/rules";
 import { DEFAULT_PACK } from "../engine/packing";
 import { DEFAULT_ROOF_TILT_DEG, ENGINE_VALIDATION, DEFAULT_PV_LOSSES, meanSoilingLoss, simulateArray } from "../engine/pv";
-import { CLEARNESS_FIT, modelledWeatherYear, type WeatherYear } from "../engine/solar";
+import { CLEARNESS_FIT, type WeatherYear } from "../engine/solar";
 import {
   buildSkyEnergy,
   neighbourObstructions,
   obstructionShading,
   rowShading,
-  shadingCurve,
   thinRows,
   type ObstructionShading,
   type ShadingResult,
@@ -95,7 +97,7 @@ type Outcome = {
   /** The sentence that explains the verdict. */
   reason: string;
   result: PlanResult;
-  packed: ReturnType<typeof packRoof>;
+  packed: PackResult;
   polygon: PolygonM;
   shading: ShadingResult | null;
   blocked: (ObstructionShading & { unknownHeights: number; considered: number; taller: number }) | null;
@@ -107,14 +109,6 @@ type Outcome = {
 };
 
 const outcomes = new Map<string, Outcome>();
-
-const shadingOptions = (layout: "south" | "east-west") => ({
-  tiltDeg: DEFAULT_ROOF_TILT_DEG,
-  azimuthDeg: layout === "east-west" ? -90 : 0,
-  moduleLengthM: DEFAULT_PACK.moduleHeightM,
-  moduleWidthM: DEFAULT_PACK.moduleWidthM,
-  albedo: 0.15,
-});
 
 const profileFor = (
   site: PortfolioSite,
@@ -152,57 +146,57 @@ const runSite = (site: PortfolioSite): Outcome => {
   const location = latLngOf(site);
   const scene = SCENES[site.sceneId];
   const profile = profileFor(site, polygon, location, { lng: scene.o[0], lat: scene.o[1] });
-  const weather = modelledWeatherYear(location);
-
-  const south = packRoof(polygon, location.lat, { layout: "south" });
-  const eastWest = packRoof(polygon, location.lat, { layout: "east-west" });
 
   // What the buildings around it block. Needs this roof's own height: a
-  // neighbour only shades it by the part standing above it.
+  // neighbour only shades it by the part standing above it. Computed inside
+  // the analysis so the packed rows and the sun it uses are the same ones
+  // the shading curve sees.
   const roofHeight = site.roofHeightM ?? subject.heightM;
   let blocked: Outcome["blocked"] = null;
-  if (roofHeight !== null && south.rows.length > 0) {
-    const centre: [number, number] = [
-      polygon.reduce((t, p) => t + p[0], 0) / polygon.length,
-      polygon.reduce((t, p) => t + p[1], 0) / polygon.length,
-    ];
-    const { obstructions, unknownHeights, considered } = neighbourObstructions(
-      buildings
-        .filter((b) => b.index !== site.buildingIndex)
-        .map((b) => ({ ring: b.polygon, heightM: b.heightM, label: `${num.format(Math.round(b.areaM2))} m² building` })),
-      roofHeight,
-      400,
-      centre,
-    );
-    const sky = buildSkyEnergy(location, weather, shadingOptions("south"));
-    blocked = {
-      ...obstructionShading(south.rows, obstructions, sky, DEFAULT_PACK.moduleWidthM),
-      unknownHeights,
-      considered,
-      taller: obstructions.length,
-    };
-  }
+  const analysis = analyzeRoof({
+    site: profile,
+    polygon,
+    ppaTerms: { aedPerKwh: 0.21, escalation: 0.02, termYears: 25 },
+    additionalPoaLoss:
+      roofHeight === null
+        ? undefined
+        : ({ rows, weather, solarYear, shadingOptions: options }) => {
+            if (rows.length === 0) return 0;
+            const centre: [number, number] = [
+              polygon.reduce((t, p) => t + p[0], 0) / polygon.length,
+              polygon.reduce((t, p) => t + p[1], 0) / polygon.length,
+            ];
+            const { obstructions, unknownHeights, considered } = neighbourObstructions(
+              buildings
+                .filter((b) => b.index !== site.buildingIndex)
+                .map((b) => ({ ring: b.polygon, heightM: b.heightM, label: `${num.format(Math.round(b.areaM2))} m² building` })),
+              roofHeight,
+              400,
+              centre,
+            );
+            const sky = buildSkyEnergy(location, weather, options, solarYear);
+            blocked = {
+              ...obstructionShading(rows, obstructions, sky, DEFAULT_PACK.moduleWidthM),
+              unknownHeights,
+              considered,
+              taller: obstructions.length,
+            };
+            return blocked.arrayLossOfPoa;
+          },
+  });
+  const result = analysis.plan;
+  const weather = analysis.weather;
 
-  const combine = (a: number, b: number) => 1 - (1 - a) * (1 - b);
-  const curve = (packed: ReturnType<typeof packRoof>, layout: "south" | "east-west") =>
-    shadingCurve(packed.rows, location, weather, shadingOptions(layout)).map((point) => ({
-      fill: point.fill,
-      loss: combine(point.loss, blocked?.arrayLossOfPoa ?? 0),
-    }));
-
-  const override: CapacityOverride = {
-    south: { kwp: south.kwp, moduleCount: south.moduleCount, shadingCurve: curve(south, "south") },
-    "east-west": { kwp: eastWest.kwp, moduleCount: eastWest.moduleCount, shadingCurve: curve(eastWest, "east-west") },
-  };
-
-  const result = plan(profile, weather, { aedPerKwh: 0.21, escalation: 0.02, termYears: 25 }, override);
   const isEastWest = result.best?.sizing.layout === "east-west";
-  const packed = isEastWest ? eastWest : south;
+  const packed = isEastWest ? analysis.packed["east-west"] : analysis.packed.south;
   const layout = isEastWest ? "east-west" : "south";
   const fill = packed.kwp > 0 ? Math.min(1, (result.best?.sizing.roofSolarKwp ?? 0) / packed.kwp) : 0;
   const rows = thinRows(packed.rows, fill);
-  const shading = rows.length >= 2 ? rowShading(rows, location, weather, shadingOptions(layout)) : null;
-  const shipped = override[layout]?.shadingCurve ?? [];
+  const shading =
+    rows.length >= 2
+      ? rowShading(rows, location, weather, analysis.shadingOptions[layout], analysis.solarYear)
+      : null;
+  const shipped = analysis.override[layout]?.shadingCurve ?? [];
 
   let design: ElectricalDesign | null = null;
   const targetKwp = result.best?.sizing.roofSolarKwp ?? 0;
@@ -261,11 +255,14 @@ const verdict = (
   if (!best || best.sizing.roofSolarKwp <= 0) {
     return {
       status: "stop",
-      headline: "Nothing worth building",
+      headline:
+        result.planUnavailableReason === "no-tariff" ? "Tariff not modelled here" : "Nothing worth building",
       reason:
-        result.context.cap.capKw <= 0
-          ? result.context.cap.explanation
-          : "No system size pays back on this site's consumption and tariff. The building does not use enough power during daylight to be worth covering.",
+        result.planUnavailableReason === "no-tariff"
+          ? `No published ${labelEmirate(result.context.site.emirate)} tariff is in the engine, so a kilowatt-hour saved cannot be priced. Only Dubai (DEWA) and Abu Dhabi (ADDC) rates are modelled today.`
+          : result.context.cap.capKw <= 0
+            ? result.context.cap.explanation
+            : "No system size pays back on this site's consumption and tariff. The building does not use enough power during daylight to be worth covering.",
     };
   }
 
@@ -537,6 +534,7 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
     byId("working").innerHTML = "";
     byId("inputs").innerHTML = "";
     byId("trust").innerHTML = "";
+    byId("report-block").hidden = true;
     return;
   }
   const { result } = outcome;
@@ -621,6 +619,67 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
       Before money is spent: have the roof structure assessed, pull interval meter data and
       confirm the approved load on the account.
     </p>`;
+
+  byId("report-block").hidden = false;
+  const download = byId<HTMLButtonElement>("report-download");
+  download.onclick = () => downloadReport(site, outcome);
+  byId<HTMLButtonElement>("report-pdf").onclick = () => downloadPdf(site, outcome);
+};
+
+const siteReport = (outcome: Outcome) =>
+  buildReport({
+    site: outcome.profile,
+    result: outcome.result,
+    verdict: { status: outcome.status, headline: outcome.headline, reason: outcome.reason },
+    packedKwp: outcome.packed.kwp,
+    packedModuleCount: outcome.packed.moduleCount,
+    rowShadingLoss: outcome.shading?.electricalArrayLoss ?? null,
+    obstructionLoss: outcome.blocked?.arrayLossOfPoa ?? null,
+    designWarnings: outcome.design?.warnings ?? [],
+  });
+
+const saveFile = (bytes: BlobPart, type: string, name: string) => {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const downloadReport = (site: PortfolioSite, outcome: Outcome) => {
+  const report = siteReport(outcome);
+  saveFile(
+    JSON.stringify(report, null, 2),
+    "application/json",
+    `mizan-report-${site.id}-${report.generatedAt.slice(0, 10)}.json`,
+  );
+};
+
+const downloadPdf = async (site: PortfolioSite, outcome: Outcome) => {
+  const report = siteReport(outcome);
+  const best = outcome.result.best;
+  // Monthly generation for the recommended array: the location's monthly
+  // yield shape scaled to the modelled annual output — same scaling the
+  // on-screen energy-mix panel uses.
+  const monthlyKwh = best
+    ? solarMonthlyYield(report.site.location).map(
+        (perKw) =>
+          (perKw * best.simulation.generationKwh) /
+          Math.max(1, solarMonthlyYield(report.site.location).reduce((a, b) => a + b, 0)),
+      )
+    : null;
+  const bytes = await siteReportPdf({
+    report,
+    monthlyKwh,
+    cashflowCumulativeAed: best ? best.finance.cashflow.map((year) => year.cumulativeAed) : null,
+  });
+  saveFile(
+    bytes.slice().buffer as ArrayBuffer,
+    "application/pdf",
+    `mizan-report-${site.id}-${report.generatedAt.slice(0, 10)}.pdf`,
+  );
 };
 
 // --- sheets -----------------------------------------------------------------
