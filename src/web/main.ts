@@ -108,6 +108,17 @@ type Outcome = {
 
 const outcomes = new Map<string, Outcome>();
 
+/** A site whose computation threw, shown as a stop rather than left pending. */
+type Failure = Pick<Outcome, "status" | "headline" | "reason">;
+
+const failures = new Map<string, Failure>();
+
+const failureFor = (error: unknown): Failure => ({
+  status: "stop",
+  headline: "Could not be worked out",
+  reason: `The screening for this site failed: ${error instanceof Error ? error.message : String(error)}`,
+});
+
 const shadingOptions = (layout: "south" | "east-west") => ({
   tiltDeg: DEFAULT_ROOF_TILT_DEG,
   azimuthDeg: layout === "east-west" ? -90 : 0,
@@ -327,7 +338,7 @@ const renderRail = () => {
   const list = byId("site-list");
   list.innerHTML = portfolio.sites
     .map((site) => {
-      const done = outcomes.get(site.id);
+      const done = outcomes.get(site.id) ?? failures.get(site.id);
       const cls = done ? `is-${done.status}` : "";
       const line = done
         ? `<div class="site-result ${done.status === "good" ? "" : `is-${done.status}`}">${esc(done.headline)}</div>`
@@ -351,7 +362,7 @@ const renderRail = () => {
 
   const tally = { good: 0, warn: 0, stop: 0 };
   for (const site of portfolio.sites) {
-    const done = outcomes.get(site.id);
+    const done = outcomes.get(site.id) ?? failures.get(site.id);
     if (done) tally[done.status] += 1;
   }
   byId("tally-good").textContent = String(tally.good);
@@ -405,7 +416,7 @@ const drawStage = (site: PortfolioSite, outcome: Outcome | undefined) => {
     area: `${scene.area}. Every outline is a building mapped in OpenStreetMap; this site is the one picked out.`,
     roof: outcome
       ? `${num.format(outcome.packed.moduleCount)} panels fit inside this outline after a 1.5 m edge setback and a 30% allowance for plant, skylights and walkways. ${num.format(Math.round(fillShare * outcome.packed.moduleCount))} are drawn. ${outcome.result.best?.bindingExplanation ?? ""}`
-      : "Laying out the array…",
+      : failures.has(site.id) ? "This site could not be worked out." : "Laying out the array…",
     wiring: outcome?.design
       ? `Each coloured line is one string of ${outcome.design.sizing.modulesPerString} panels wired in series, taking every other panel out along the row and picking up the rest on the way back, so both ends finish together. Dashed lines are the cable back to the inverters.`
       : "No array to wire here.",
@@ -531,8 +542,17 @@ const inputRow = (label: string, value: string, source: string, chip: string, te
 
 const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
   if (!outcome) {
+    const failed = failures.get(site.id);
     byId("renewable-site").innerHTML = "";
-    byId("verdict").innerHTML = `<p class="note">Running the numbers for this site…</p>`;
+    byId("verdict").innerHTML = failed
+      ? `<div class="verdict">
+          <span class="dot is-${failed.status}"></span>
+          <div class="verdict-text">
+            <b>${esc(failed.headline)}</b>
+            <p>${esc(failed.reason)}</p>
+          </div>
+        </div>`
+      : `<p class="note">Running the numbers for this site…</p>`;
     byId("kpis").innerHTML = "";
     byId("working").innerHTML = "";
     byId("inputs").innerHTML = "";
@@ -722,8 +742,10 @@ const computeAll = () => {
     index += 1;
     try {
       runSite(site);
+      failures.delete(site.id);
     } catch (error) {
       console.error("site failed", site.id, error);
+      failures.set(site.id, failureFor(error));
     }
     if (site.id === activeSiteId) render();
     else renderRail();
