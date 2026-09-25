@@ -46,7 +46,7 @@ intake + guided questionnaire (`engine/intake.ts`), corporate-tax handling,
 P50/P90 bands, own-vs-PPA, and the on-screen assumption/provenance register.
 Validated against PVGIS (0.26 % bias, 1.51 % MAE). E2E-tested in Chrome.
 
-**C — the engineering work order.** Executes `ENGINE_IMPROVEMENTS.md`: shared
+**C — the engineering work order.** Executes `docs/ENGINE_IMPROVEMENTS.md` (moved from the root): shared
 `calendar.ts` (five duplicate month-of-hour implementations collapsed, weekend
 mapping made deliberate and tested), `SolarYear` cache (sun positions computed
 once per site), `analyzeRoof` facade so app, demo script and tests run the
