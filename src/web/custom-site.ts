@@ -24,6 +24,20 @@ const defaultTariffFor = (emirate: Emirate, annualKwh: number, approvedLoadKw?: 
 
 const EMIRATES: Emirate[] = ["abu-dhabi", "dubai", "sharjah", "ajman", "umm-al-quwain", "ras-al-khaimah", "fujairah"];
 
+/** Sanity ceilings for one site: a few times the largest UAE industrial consumer / connection / roof. */
+const LIMITS = { annualKwh: 5e9, approvedLoadKw: 5e6, roofAreaM2: 5e6 };
+
+type ParsedNumber = { value: number | undefined; error?: string };
+
+/** Optional positive number: blank is fine, anything else must be a finite positive value under the sanity ceiling. */
+const optionalPositive = (raw: string, label: string, max: number, unit: string): ParsedNumber => {
+  if (!raw) return { value: undefined };
+  const value = Number(raw.replace(/,/g, ""));
+  if (!Number.isFinite(value) || value <= 0) return { value: undefined, error: `${label} must be a positive number (leave it blank if unknown).` };
+  if (value > max) return { value: undefined, error: `${label} of ${value.toLocaleString()} ${unit} is beyond anything a single UAE site has — check the units.` };
+  return { value };
+};
+
 /** Approximate coordinates for a site: nearest wind climate point by name, else emirate centroid. */
 const approxLocation = (address: string, emirate: Emirate): { lat: number; lng: number; note: string } => {
   const inEmirate = WIND_SITES.filter(s => s.emirate === emirate);
@@ -51,8 +65,7 @@ export function openCustomSiteFlow(onConfirm: (site: RenewableCase) => void) {
   // with a one-line polyfill puts the shim where a main-thread polyfill can't
   // reach — and keeps everything offline.
   const pdfWorkerSrc = async () => {
-    const url = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url);
-    const src = await (await fetch(url)).text();
+    const { default: src } = await import("pdfjs-dist/build/pdf.worker.min.mjs?raw");
     const shim = "Uint8Array.prototype.toHex ||= function(){return [...this].map(b=>b.toString(16).padStart(2,'0')).join('')};\n";
     return URL.createObjectURL(new Blob([shim + src], { type: "text/javascript" }));
   };
@@ -210,23 +223,38 @@ export function openCustomSiteFlow(onConfirm: (site: RenewableCase) => void) {
     const name = valueOf("name") || "My site";
     const emirate = (valueOf("emirate") || "dubai") as Emirate;
     const address = valueOf("address") || labelEmirate(emirate);
-    const annualKwh = Number(valueOf("annualKwh").replace(/,/g, ""));
-    const err = body.querySelector("[data-error]");
-    err?.remove();
-    if (!EMIRATES.includes(emirate) || !Number.isFinite(annualKwh) || annualKwh <= 0) {
+    const annual = optionalPositive(valueOf("annualKwh"), "Annual electricity use", LIMITS.annualKwh, "kWh");
+    const roof = optionalPositive(valueOf("roofAreaM2"), "Roof area", LIMITS.roofAreaM2, "m²");
+    const load = optionalPositive(valueOf("approvedLoadKw"), "Approved load", LIMITS.approvedLoadKw, "kW");
+    const problems = [annual.error, roof.error, load.error].filter((e): e is string => Boolean(e));
+    if (!EMIRATES.includes(emirate) || annual.value === undefined) {
+      problems.unshift("Mizan needs at least an emirate and an annual electricity use in kWh to run.");
+    }
+    body.querySelector("[data-error]")?.remove();
+    if (problems.length) {
       body.insertAdjacentHTML(
         "beforeend",
-        `<p class="callout is-warn" data-error>Mizan needs at least an <b>emirate</b> and an <b>annual electricity use in kWh</b> to run. Fill those in and confirm again.</p>`,
+        `<p class="callout is-warn" data-error>${problems.map(esc).join(" ")} Fix those and confirm again.</p>`,
       );
       return;
     }
-    const roofAreaM2 = Number(valueOf("roofAreaM2").replace(/,/g, ""));
-    const approvedLoadKw = Number(valueOf("approvedLoadKw").replace(/,/g, "")) || undefined;
+    const annualKwh = annual.value!;
+    const roofAreaM2 = roof.value;
+    const approvedLoadKw = load.value;
     const { lat, lng, note } = approxLocation(address, emirate);
     // Solar ceiling: stated roof area at ~6 m²/kWp, else a load-based ceiling.
-    const solarKw = Number.isFinite(roofAreaM2) && roofAreaM2 > 0 ? roofAreaM2 / 6 : annualKwh / 1600;
+    const solarKw = roofAreaM2 !== undefined ? roofAreaM2 / 6 : annualKwh / 1600;
 
-    const docFields = merged.filter(f => f.status !== "not-found" && f.value);
+    // Evidence is what the user confirmed. A value that still matches the
+    // document keeps the document as its source; an edited one is theirs.
+    const confirmed = FIELD_ORDER.flatMap((key) => {
+      const value = valueOf(key);
+      if (!value) return [];
+      const extracted = merged.find(f => f.key === key);
+      const fromDoc = extracted && extracted.status !== "not-found" && extracted.value === value;
+      return [{ key, value, source: fromDoc ? extracted.source : "entered or edited by you" }];
+    });
+    const docFields = confirmed.filter(f => f.source !== "entered or edited by you");
     const site: RenewableCase = {
       id: `custom-${Date.now()}`,
       name, where: address, emirate, location: { lat, lng },
@@ -234,15 +262,14 @@ export function openCustomSiteFlow(onConfirm: (site: RenewableCase) => void) {
       solarKw: Math.round(solarKw),
       approvedLoadKw,
       category: "Your site · analysed like the examples",
-      description: `A site you supplied — fields marked "Found in document" came from your uploaded file (${docFields.map(d => d.source).join("; ") || "manual entry"}); everything else is a screening assumption. Location is ${note}.`,
+      description: `A site you supplied — values you confirmed from your uploaded file (${[...new Set(docFields.map(d => d.source))].join("; ") || "none; manual entry"}) are listed with that document as source; anything you typed or edited says so; everything else is a screening assumption. Location is ${note}.`,
       defaultSources: ["solar"],
       defaultTariff: defaultTariffFor(emirate, annualKwh, approvedLoadKw),
-      evidence: docFields.map(f => ({
+      evidence: confirmed.map(f => ({
         label: FIELD_LABELS[f.key],
-        value: f.value + (f.note ? ` — ${f.note}` : ""),
+        value: `${f.value} — ${f.source}`,
       })),
     };
-    if (approvedLoadKw) site.evidence!.push({ label: "Approved load", value: `${approvedLoadKw.toLocaleString()} kW` });
     UAE_RENEWABLE_CASES.push(site);
     dialog.close();
     onConfirm(site);

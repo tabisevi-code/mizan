@@ -167,9 +167,18 @@ export const extractFields = (docName: string, pageTexts: string[]): DocumentFie
   push("emirate", emirateHit);
 
   const annual = energyKwh(pageTexts, [/annual\s+(?:electricity\s+)?consumption/i, /total\s+(?:annual\s+)?consumption/i, /year\s+(?:to\s+date\s+)?consumption/i, /consumption/i]);
+  const monthly = monthlyKwh(pageTexts);
+  if (annual && monthly && monthly.confirmed) {
+    const sum = monthly.value.split(",").reduce((t, v) => t + Number(v), 0);
+    const stated = Number(annual.value);
+    if (sum > 0 && stated > 0 && Math.abs(sum - stated) / stated > 0.01) {
+      const note = `The twelve monthly figures sum to ${Math.round(sum).toLocaleString()} kWh, not ${Math.round(stated).toLocaleString()} kWh — the document disagrees with itself; confirm which is right.`;
+      annual.note = note;
+      monthly.note = note;
+    }
+  }
   push("annualKwh", annual, annual ? undefined : "No annual consumption figure was found — enter it manually.");
-
-  push("monthlyKwh", monthlyKwh(pageTexts));
+  push("monthlyKwh", monthly);
 
   const load = (() => {
     const re = new RegExp(`(?:approved|sanctioned|connected|contract|maximum)\\s+(?:electrical\\s+)?(?:load|demand|capacity)[^\\n]{0,30}?:?\\s*${NUM}\\s*(kW|kVA|MW)`, "i");

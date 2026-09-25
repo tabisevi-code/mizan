@@ -7,7 +7,7 @@ description: How to build, launch, and drive the Mizan static screening page for
 
 ## Build and launch
 - Run `source /home/ubuntu/.nvm/nvm.sh` before any npm command.
-- `npm run build` produces a self-contained `dist/page.html` (~400 kB). Open it directly via `file:///home/ubuntu/repos/mizan/dist/page.html` — no dev server is needed.
+- `npm run build` produces self-contained HTML (the integrated PDF worker makes it several MB). For the integrated intake/export tests use `node serve.mjs` for `dist/local.html` on port 4173, and independently test Vite development mode; see `testing-mizan-ui`.
 - Chrome for Testing lives at `/home/ubuntu/.local/bin/google-chrome` on display `:0`. Maximize with `wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz`.
 - OSM/Esri satellite tiles may or may not load depending on network; missing tiles are expected and not a failure. Everything else is bundled.
 

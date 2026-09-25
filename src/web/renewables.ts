@@ -94,7 +94,7 @@ export function renderRenewables(root: HTMLElement, site: RenewableCase, example
       <label>Scenario annual consumption (kWh)<input data-load type="number" min="0" step="any" value="${state.annualKwh}"></label>
       <label>Assumed avoided rate (AED/kWh)<input data-rate type="number" min="0" max="2" step="0.01" value="${state.tariff}"></label>
     </div>
-    <p class="note renewable-cost-note">Capacity can be reduced from the example design. Costs are assumptions: ${configured.map(s => `${SOURCE_LABELS[s.source]} ${money(s.capexAedPerKw)}/kW, ${(s.annualOmFraction * 100).toFixed(1)}% annual O&M`).join("; ") || "no buildable sources configured"}.${configured.some(s => s.source === "wind") ? ` Wind uses a flat assumed ${(configured.find(s => s.source === "wind")!.monthlyKwhPerKw.reduce((a, b) => a + b, 0) / 8760 * 100).toFixed(0)}% capacity factor, not a measured seasonal pattern.` : ""}</p>
+    <p class="note renewable-cost-note">Capacity can be reduced from the example design. Costs are assumptions: ${configured.map(s => `${SOURCE_LABELS[s.source]} ${money(s.capexAedPerKw)}/kW, ${(s.annualOmFraction * 100).toFixed(1)}% annual O&M`).join("; ") || "no buildable sources configured"}.${configured.some(s => s.source === "wind") ? ` Wind runs at a ${(configured.find(s => s.source === "wind")!.monthlyKwhPerKw.reduce((a, b) => a + b, 0) / 8760 * 100).toFixed(0)}% modelled capacity factor with a monthly shape from Global Wind Atlas + ERA5 at the nearest climate point — a model, not a mast measurement.` : ""}</p>
     <div aria-live="polite" class="renewable-results">
     ${selected.length ? `
       <div class="renewable-stats">

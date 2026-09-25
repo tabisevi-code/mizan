@@ -399,7 +399,7 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
   const siteYield = installedSolar > 0 && best ? best.simulation.generationKwh / installedSolar : 0;
   renderRenewables(byId("renewable-site"), {
     id: site.id, name: site.name, where: site.where, emirate: site.emirate, location: context.site.location,
-    annualKwh: site.annualKwh, category: "Portfolio screening", solarKw: installedSolar,
+    annualKwh: site.annualKwh, approvedLoadKw: site.approvedLoadKw, category: "Portfolio screening", solarKw: installedSolar,
     solarMonthly: monthlySolar.map(v => modelYield > 0 ? v * siteYield / modelYield : 0),
     windKw: site.sceneId === "jafza" ? 100 : undefined,
     windProfile: site.sceneId === "jafza" ? "jebel-ali" : undefined,
@@ -480,7 +480,13 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
     })
     .join("");
 
-  const modelled = context.weather.source === "modelled-clear-sky";
+  const weatherNote = {
+    "modelled-clear-sky":
+      "This site is using the fitted model rather than a measured year for its exact coordinates: PVGIS refuses requests made straight from a browser, so a measured year arrives only when the local server is running.",
+    "nasa-power-climatology":
+      "This site's weather year is the NASA POWER 20-year climatology at the nearest half-degree grid point, blended with measured monthly irradiation — a typical year, not a metered one.",
+    "pvgis-tmy": "Measured typical year for these coordinates, straight from PVGIS.",
+  }[context.weather.source];
   byId("trust").innerHTML = `
     <div class="callout is-good">
       <b>Checked against PVGIS.</b> The sunlight model is fitted to five-year measurements at
@@ -489,9 +495,7 @@ const renderPanel = (site: PortfolioSite, outcome: Outcome | undefined) => {
       ${pct(ENGINE_VALIDATION.yieldMeanAbsError)} on average with no bias either way.
     </div>
     <p class="note">
-      ${modelled
-        ? "This site is using the fitted model rather than a measured year for its exact coordinates: PVGIS refuses requests made straight from a browser, so a measured year arrives only when the local server is running."
-        : "Measured typical year for these coordinates, straight from PVGIS."}
+      ${weatherNote}
       No real UAE system's metered output has been compared against this engine, and nothing here claims otherwise.
     </p>
     <p class="note">

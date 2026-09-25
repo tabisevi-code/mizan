@@ -187,3 +187,26 @@ test("conflicting values across documents are kept visible as a conflict", () =>
   assert.equal(emirate.status, "found");
   assert.equal(emirate.alternatives.length, 0);
 });
+
+const MONTHS = "Jan 100 kWh Feb 100 kWh Mar 100 kWh Apr 100 kWh May 100 kWh Jun 100 kWh Jul 100 kWh Aug 100 kWh Sep 100 kWh Oct 100 kWh Nov 100 kWh Dec 100 kWh";
+
+test("annual figure that disagrees with the twelve monthly figures is flagged for confirmation", () => {
+  const doc = extractFields("bill.txt", [`Annual consumption: 1,500 kWh\nMonthly consumption (kWh): ${MONTHS}\nDubai`]);
+  const byKey = Object.fromEntries(doc.fields.map((f) => [f.key, f]));
+  assert.equal(byKey.annualKwh.status, "needs-confirmation");
+  assert.match(byKey.annualKwh.note ?? "", /sum to 1,200 kWh, not 1,500 kWh/);
+  assert.equal(byKey.monthlyKwh.status, "needs-confirmation");
+
+  const consistent = extractFields("bill.txt", [`Annual consumption: 1,200 kWh\nMonthly consumption (kWh): ${MONTHS}\nDubai`]);
+  const ok = Object.fromEntries(consistent.fields.map((f) => [f.key, f]));
+  assert.equal(ok.annualKwh.status, "found");
+  assert.equal(ok.monthlyKwh.status, "found");
+});
+
+test("the shipped demo statement is internally consistent", async () => {
+  const src = await import("node:fs").then((fs) => fs.readFileSync("scripts/gen-demo-doc.mjs", "utf8"));
+  const annual = Number(src.match(/Annual electricity consumption: ([\d,]+) kWh/)![1].replace(/,/g, ""));
+  const monthly = [...src.matchAll(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ([\d,]+) kWh/g)].map((m) => Number(m[1].replace(/,/g, "")));
+  assert.equal(monthly.length, 12);
+  assert.equal(monthly.reduce((a, b) => a + b, 0), annual);
+});
