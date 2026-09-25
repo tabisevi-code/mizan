@@ -407,6 +407,13 @@ export const monthOfHour = (hourOfYear: number): number => {
   return 11;
 };
 
+/**
+ * Clearness index of a Haurwitz clear sky. The monthly clearness index is
+ * applied as a ratio to this value, since Haurwitz already describes a clear
+ * sky rather than an extraterrestrial one.
+ */
+export const CLEAR_SKY_REFERENCE_CLEARNESS = 0.75;
+
 export type WeatherYear = {
   ghi: HourlySeries;
   ambientC: HourlySeries;
@@ -428,9 +435,7 @@ export const modelledWeatherYear = (site: LatLng): WeatherYear => {
     const month = monthOfHour(hour);
     const sun = solarPosition(site, hour);
     const clear = clearSkyGhi(sun.cosZenith);
-    // Haurwitz already describes a clear sky, so the clearness index is applied
-    // as a ratio to its own clear-sky maximum of roughly 0.75.
-    ghi[hour] = clear * (clearness[month] / 0.75);
+    ghi[hour] = clear * (clearness[month] / CLEAR_SKY_REFERENCE_CLEARNESS);
 
     const localHour = hour % 24;
     const swing = 9; // daily temperature range, degrees C
