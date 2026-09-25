@@ -16,6 +16,7 @@ import { SECTOR_LABELS } from "../engine/load";
 import { plan, type CapacityOverride, type PlanResult } from "../engine/plan";
 import { RULE_SETS, labelEmirate } from "../engine/rules";
 import { DEFAULT_PACK } from "../engine/packing";
+import { DEFAULT_USABLE_AREA } from "../engine/capacity";
 import { DEFAULT_ROOF_TILT_DEG, ENGINE_VALIDATION, DEFAULT_PV_LOSSES, meanSoilingLoss, simulateArray } from "../engine/pv";
 import { CLEARNESS_FIT, modelledWeatherYear, type WeatherYear } from "../engine/solar";
 import {
@@ -448,12 +449,19 @@ const working = (site: PortfolioSite, outcome: Outcome): string => {
   );
   const soiling = meanSoilingLoss(DEFAULT_PV_LOSSES);
   const heat = unit.lossBreakdown.find((l) => l.label.startsWith("Heat"))?.fraction ?? 0;
+  const systemLossLabels = ["DC wiring and mismatch", "Inverter conversion", "Availability", "Nameplate, part-load and mismatch"];
+  const systemLoss =
+    1 -
+    unit.lossBreakdown
+      .filter((l) => systemLossLabels.includes(l.label))
+      .reduce((kept, l) => kept * (1 - l.fraction), 1);
+  const roofAllowance = DEFAULT_USABLE_AREA.roofObstructionAllowance;
 
   const size = [
     step("Roof outline, from OpenStreetMap", `${num.format(context.roofAreaM2)} m²`),
     step("Less a 1.5 m setback at every edge", `${num.format(packed.netAreaM2)} m²`),
     note("Kept clear for access and wind uplift, measured in from each edge rather than shrunk towards the middle."),
-    step("Less 30% for plant, skylights, walkways", `${num.format(Math.round(packed.netAreaM2 * 0.7))} m²`),
+    step(`Less ${pct(roofAllowance, 0)} for plant, skylights, walkways`, `${num.format(Math.round(packed.netAreaM2 * (1 - roofAllowance)))} m²`),
     step(`Panels that fit, laid ${layout === "east-west" ? "east–west" : "facing south"}`, `${num.format(packed.moduleCount)}`),
     note(`1.134 × 2.278 m panels at ${DEFAULT_ROOF_TILT_DEG}° tilt, rows spaced to clear each other's shadow at midday in December.`),
     step("The roof could hold", `${num.format(packed.kwp)} kW`),
@@ -475,7 +483,7 @@ const working = (site: PortfolioSite, outcome: Outcome): string => {
     outcome.blocked && outcome.blocked.taller > 0
       ? step("Shadow of the buildings around it", `−${pct(outcome.blocked.arrayLossOfPoa)}`, "is-cap")
       : "",
-    step("Inverter, wiring, availability, mismatch", `−${pct(1 - 0.97 * 0.975 * 0.99 * 0.97)}`),
+    step("Inverter, wiring, availability, mismatch", `−${pct(systemLoss)}`),
     step("Generated in year one", kwh(best.simulation.generationKwh), "is-total"),
   ].join("");
 
