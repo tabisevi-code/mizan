@@ -20,7 +20,12 @@
  * scoring the fit on the data it was fitted to.
  */
 
-import { clearSkyGhi, clearnessFor, solarPosition } from "../src/engine/solar";
+import {
+  CLEAR_SKY_REFERENCE_CLEARNESS,
+  clearSkyGhi,
+  clearnessFor,
+  solarPosition,
+} from "../src/engine/solar";
 import { HOURS_PER_YEAR } from "../src/engine/types";
 import measured from "../src/data/pvgis-uae-monthly.json" with { type: "json" };
 
@@ -58,11 +63,14 @@ const clearSkyByMonth = (site: { lat: number; lng: number }): number[] => {
 
 /**
  * What clearness index would have reproduced the measured month exactly. The
- * engine applies `ghi = clearSky * (K / 0.75)`, so this inverts that.
+ * engine applies `ghi = clearSky * (K / CLEAR_SKY_REFERENCE_CLEARNESS)`, so
+ * this inverts that.
  */
 const impliedK = (site: Site): number[] => {
   const clear = clearSkyByMonth({ lat: site.lat, lng: site.lon });
-  return site.m.map((measuredKwh, month) => 0.75 * (measuredKwh / clear[month]));
+  return site.m.map(
+    (measuredKwh, month) => CLEAR_SKY_REFERENCE_CLEARNESS * (measuredKwh / clear[month]),
+  );
 };
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -111,7 +119,7 @@ const MODELS: Model[] = [
 
 const errorsFor = (predicted: number[], site: Site, clear: number[]) =>
   site.m.map((measuredKwh, month) => {
-    const modelled = clear[month] * (predicted[month] / 0.75);
+    const modelled = clear[month] * (predicted[month] / CLEAR_SKY_REFERENCE_CLEARNESS);
     return (modelled - measuredKwh) / measuredKwh;
   });
 
@@ -138,7 +146,10 @@ const run = () => {
       const predicted = predict(row.site);
       monthly.push(errorsFor(predicted, row.site, row.clear).map(Math.abs));
 
-      const modelledYear = row.clear.reduce((t, c, m) => t + c * (predicted[m] / 0.75), 0);
+      const modelledYear = row.clear.reduce(
+        (t, c, m) => t + c * (predicted[m] / CLEAR_SKY_REFERENCE_CLEARNESS),
+        0,
+      );
       const measuredYear = row.site.m.reduce((a, b) => a + b, 0);
       annual.push((modelledYear - measuredYear) / measuredYear);
     }
